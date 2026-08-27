@@ -39,25 +39,39 @@ public final class DeviceDiscoveryController: ObservableObject {
         lastError = nil
         discoveredDevices = DiscoveredDeviceList.cleared()
 
-        do {
-            try await bluetooth.startScan(matching: nil)
-        } catch let error as BluetoothError {
-            lastError = error
-            return
-        } catch {
-            lastError = .unknown(reason: error.localizedDescription)
-            return
-        }
-
-        isScanning = true
+        // Belangrijk: eerst abonneren op de discovery-stream, dán pas het
+        // scannen starten. `AsyncStream` buffert yields die vóór de eerste
+        // `for await`-iteratie binnenkomen, maar alleen als de continuation
+        // al bestaat. Als `discoveredDevicesStream()` pas ván bínnen de
+        // achtergrond-Task wordt aangeroepen, kan een ontdekking die
+        // aankomt vóórdat die Task daadwerkelijk is gestart, in het niets
+        // verdwijnen — er is dan nog helemaal geen continuation om aan te
+        // yielden. Vandaar: de stream synchroon aanmaken vóórdat `connect`/
+        // `startScan` het apparaat aan het werk zet, niet erna.
+        let stream = bluetooth.discoveredDevicesStream()
         discoveryTask = Task { [weak self] in
             guard let self else { return }
-            let stream = self.bluetooth.discoveredDevicesStream()
             for await device in stream {
                 if Task.isCancelled { break }
                 await self.handleDiscovery(of: device)
             }
         }
+
+        do {
+            try await bluetooth.startScan(matching: nil)
+        } catch let error as BluetoothError {
+            lastError = error
+            discoveryTask?.cancel()
+            discoveryTask = nil
+            return
+        } catch {
+            lastError = .unknown(reason: error.localizedDescription)
+            discoveryTask?.cancel()
+            discoveryTask = nil
+            return
+        }
+
+        isScanning = true
     }
 
     public func stopScan() async {
@@ -109,12 +123,13 @@ public final class DeviceDiscoveryController: ObservableObject {
     /// Volgt onverwachte statuswijzigingen (bv. verbindingsverlies) die niet
     /// het resultaat zijn van een expliciete `connect`/`disconnect`-aanroep
     /// vanuit deze controller. Wordt éénmalig per apparaat gestart, bij het
-    /// eerste `connect`.
+    /// eerste `connect`. Zelfde volgorde-principe als bij `startScan()`:
+    /// eerst de stream aanmaken, dán pas de Task die hem consumeert.
     private func observeConnectionState(for deviceId: UUID) {
         guard connectionObservationTasks[deviceId] == nil else { return }
+        let stream = bluetooth.connectionStateStream(for: deviceId)
         connectionObservationTasks[deviceId] = Task { [weak self] in
             guard let self else { return }
-            let stream = self.bluetooth.connectionStateStream(for: deviceId)
             for await state in stream {
                 if Task.isCancelled { break }
                 await self.updateConnectionState(state, for: deviceId)

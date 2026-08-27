@@ -110,3 +110,37 @@ SwiftPM-target (zie eerdere sprints) en wordt dus niet door
 (`DiscoveredDeviceList`, `DeviceDiscoveryController`) zit daarom in de wél
 geteste module `CoachOSConnectDeviceDiscovery`; de SwiftUI-views zelf
 blijven bewust dun en declaratief.
+
+---
+
+## CI-fix — race condition in DeviceDiscoveryController
+
+CI-run op de Sprint 4-patch faalde met:
+
+```
+Tests/CoachOSConnectDeviceDiscoveryTests/DeviceDiscoveryControllerTests.swift:57:
+XCTAssertEqual failed: ("[]") is not equal to ("[<device-id>]")
+```
+
+**Oorzaak:** `DeviceDiscoveryController.startScan()` riep
+`bluetooth.discoveredDevicesStream()` aan *binnen* de achtergrond-`Task`
+die de stream consumeert, in plaats van ervóór. Daardoor kon `startScan()`
+al terugkeren voordat die Task daadwerkelijk gestart was. Een ontdekking
+die in dat venster binnenkomt, wordt aan een nog niet bestaande
+continuation "geyield" en gaat verloren — niet gebufferd, want er was nog
+geen continuation om te bufferen. Op de mock (synchrone
+`simulateDiscovery`) was dit venster breed genoeg om vrijwel altijd te
+missen; met echte hardware is dit venster smaller maar principieel
+hetzelfde risico.
+
+**Gewijzigd**
+- `Sources/CoachOSConnectDeviceDiscovery/DeviceDiscoveryController.swift`:
+  - `startScan()`: `discoveredDevicesStream()` wordt nu synchroon aangeroepen
+    vóórdat de consumerende `Task` wordt aangemaakt, en vóórdat
+    `bluetooth.startScan(matching:)` het apparaat aan het werk zet.
+  - `observeConnectionState(for:)`: zelfde volgorde-fix toegepast op
+    `connectionStateStream(for:)`, al was dit niet de aanleiding — voor
+    consistentie en om hetzelfde risico daar preventief te dichten.
+- Geen enkele test gewijzigd; de bestaande
+  `test_startScan_publishesDiscoveredDevices` hoort nu deterministisch te
+  slagen zonder de timing van de `Task.sleep` te hoeven verruimen.
