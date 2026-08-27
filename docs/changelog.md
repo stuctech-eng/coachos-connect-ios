@@ -144,3 +144,66 @@ hetzelfde risico.
 - Geen enkele test gewijzigd; de bestaande
   `test_startScan_publishesDiscoveredDevices` hoort nu deterministisch te
   slagen zonder de timing van de `Task.sleep` te hoeven verruimen.
+
+---
+
+## Sprint 5a — PM5/CSAFE-encoding (pure, nog geen BLE)
+
+Eerste stuk PM5-code in de repository. Bewust gescheiden van transport
+(sectie 31/33 masterdocument): dit levert alleen de `PM5Protocol` en
+`CSAFECommandEncoder`-lagen uit de architectuur in sectie 56 — nog geen
+`CSAFETransport`, `BLETransport` of `PM5Adapter`. Die volgen in Sprint 5b,
+zodra deze laag hier staat en getest is.
+
+**Onderzoek vóór implementatie (per sectie 44-46, source confidence model)**
+
+Twee stukken ontbrekende, niet eerder bevestigde informatie opgezocht en
+bevestigd vóór er één regel code geschreven werd:
+
+1. **PM5 BLE-servicedefinitie** (Level 1: officiële Concept2-documentatie,
+   "Concept2 PM Bluetooth Smart Communication Interface Definition" Rev
+   1.30) — GATT-service-/characteristic-UUID's voor Device Discovery,
+   Device Information, C2 PM Control (CSAFE-commando's/-responses) en C2
+   PM Rowing (live metrics, nog niet gebruikt).
+2. **CSAFE-frame-structuur** (Level 1: officiële "Concept2 Performance
+   Monitor CSAFE Communication Definition" Rev 0.27) — start-byte 0xF1,
+   stop-byte 0xF2, byte-stuffing-vlag 0xF3 met volledige stuffing-tabel,
+   checksum = XOR van de (ongestufte) inhoud. Geverifieerd door twee echte,
+   in het wild vastgelegde CSAFE-frames uit Concept2-forumdiscussies
+   handmatig na te rekenen — beide kloppen exact (zie testfixtures).
+3. **Wrapper-mechaniek voor de acht bevestigde PM-commando's** (Level 2:
+   ErgometerJS `command_core.ts`, onafhankelijk gekruist met
+   tijmenvangulik's aparte PM3Monitor C++-project) — de acht eerder
+   bevestigde commando's (0x01, 0x03, 0x04, 0x06, 0x14, 0x15, 0x17, 0x18)
+   zijn geen top-level CSAFE-commando's, maar `detailCommand`-waarden onder
+   het proprietary "long command" `SETPMCFG_CMD = 0x76`. Dit was niet
+   expliciet vastgelegd in het eerdere onderzoek en zou zonder deze check
+   tot een verkeerd frame-formaat hebben geleid.
+4. **Bonus-vondst:** de officiële BLE-spec bevat de volledige
+   `IntervalType`-enum (namen én waarden), inclusief de undefined-rest-
+   varianten. Dit lost een deel van de eerder openstaande vraag op (sectie
+   28-30 masterdocument) — de enum-waarden zijn nu bevestigd. Wat nog
+   ontbreekt: een gevalideerd werkend voorbeeld van de volledige
+   programmeersequentie voor die varianten. Daarom blijft `.openEnded`-duur
+   (undefined rest) nog expliciet geweigerd in `PM5WorkoutProgrammer`, niet
+   geïmplementeerd op basis van alleen de enum-waarde.
+
+**Toegevoegd**
+- Nieuwe module `CoachOSConnectPM5` (afhankelijk van alleen `CoachOSConnectCore`, geen Bluetooth-koppeling in deze sprint).
+- `CSAFEByteStuffing`: stuff/unstuff volgens de bevestigde tabel.
+- `CSAFEFrame`: encode/decode van complete frames (start/stop/checksum/stuffing), geverifieerd tegen twee echte gevangen frames.
+- `PM5ProprietaryCommand`: de acht bevestigde commando's met hun exacte, bevestigde payload-encoding (eenheden, byte-volgorde, multipliers).
+- `PM5Frame`: verpakt commando's onder de bevestigde `SETPMCFG_CMD`-wrapper tot verzendklare CSAFE-frames.
+- `PM5BLEConstants`: GATT-UUID's, met bronvermelding, nog niet gekoppeld aan `CoachOSConnectBluetooth`.
+- `PM5Error`: `unsupportedWorkoutConfiguration` — expliciete weigering in plaats van gokken, conform sectie 59.
+- `PM5WorkoutProgrammer`: vertaalt `UniversalWorkout` naar geordende PM5-intervalblokken voor het bevestigde MVP-geval (tijdgebaseerde werk/hersteld-paren, `.power`/`.pace`-targets). Weigert expliciet: warm-up/cooldown, ongepaarde werkstappen, afstandgebaseerde duur, `.openEnded`-duur, niet-ondersteunde target-metrics.
+- `Sources/CoachOSConnectCore/Models/UniversalWorkout.swift`: `WorkoutTarget`-documentatie uitgebreid met de eenheid-conventie per metric (`.power` = rauwe watts, `.pace` = seconden per 500m) — sluit het gat dat de Sprint 1-audit signaleerde.
+- Tests (`CoachOSConnectPM5Tests`): elk bevestigd commando individueel, de `SETPMCFG_CMD`-wrapper, het bevestigde MVP-workoutgeval end-to-end, én elk expliciet geweigerd geval (zeven scenario's) — allemaal zonder BLE-hardware nodig.
+
+**Bewust niet toegevoegd**
+- BLE-verbinding/transport (`CSAFETransport`, `BLETransport`) — koppeling met `CoachOSConnectBluetooth` volgt in Sprint 5b.
+- `PM5Adapter` conform `DeviceAdapterProtocol` — vraagt de transportlaag hierboven, dus ook Sprint 5b.
+- Response-/statusframe-decodering (ontvangen data van de PM5 interpreteren) — alleen encoding (verzenden) zit in deze sprint.
+- Live metrics — hoort bij de C2 Rowing Service, een latere sprint.
+- Undefined-rest-workouts — enum-waarden nu bevestigd, werkende sequentie nog niet; blijft expliciet geweigerd.
+- Afstandgebaseerde intervallen — de bevestigde MVP-keten is tijdgebaseerd.

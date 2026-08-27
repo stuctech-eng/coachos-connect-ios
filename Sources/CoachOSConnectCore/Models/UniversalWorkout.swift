@@ -134,6 +134,14 @@ public enum WorkoutDuration: Codable, Equatable, Sendable {
 /// (bijv. vermogen én cadans). De adapter bepaalt welke targets zijn apparaat
 /// daadwerkelijk kan aansturen; niet-ondersteunde targets worden genegeerd,
 /// nooit gesimuleerd.
+///
+/// Eenheid-conventie per `metric` (vastgelegd n.a.v. Sprint 1-audit, die
+/// signaleerde dat dit voorheen niet gedocumenteerd was — cruciaal voor
+/// correcte vertaling naar apparaat-specifieke protocollen zoals CSAFE):
+/// - `.power`: rauwe watts
+/// - `.pace`: seconden per 500m (bijv. `100.0` voor een pace van 1:40/500m)
+/// - overige metrics: nog geen vastgelegde conventie; adapters die ze niet
+///   ondersteunen behoren dit expliciet te weigeren, niet te gokken.
 public struct WorkoutTarget: Codable, Equatable, Sendable {
     public let metric: MetricType
     public let minValue: Double?

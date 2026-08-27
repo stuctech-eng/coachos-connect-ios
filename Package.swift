@@ -27,6 +27,9 @@ let package = Package(
         // Kent, net als die laag, geen fabrikanten.
         .library(name: "CoachOSConnectDeviceDiscovery", targets: ["CoachOSConnectDeviceDiscovery"]),
 
+        // PM5/CSAFE-encoding (Sprint 5a): pure byte-encoding, nog geen BLE.
+        .library(name: "CoachOSConnectPM5", targets: ["CoachOSConnectPM5"]),
+
         // Device Layer: universele adapter-architectuur. Geen hardware-implementaties.
         .library(name: "CoachOSConnectDeviceLayer", targets: ["CoachOSConnectDeviceLayer"]),
 
@@ -51,6 +54,10 @@ let package = Package(
         .target(
             name: "CoachOSConnectDeviceDiscovery",
             dependencies: ["CoachOSConnectBluetooth"]
+        ),
+        .target(
+            name: "CoachOSConnectPM5",
+            dependencies: ["CoachOSConnectCore"]
         ),
         .target(
             name: "CoachOSConnectDeviceLayer",
@@ -81,6 +88,10 @@ let package = Package(
         .testTarget(
             name: "CoachOSConnectDeviceDiscoveryTests",
             dependencies: ["CoachOSConnectDeviceDiscovery", "CoachOSConnectBluetooth"]
+        ),
+        .testTarget(
+            name: "CoachOSConnectPM5Tests",
+            dependencies: ["CoachOSConnectPM5", "CoachOSConnectCore"]
         )
     ]
 )
