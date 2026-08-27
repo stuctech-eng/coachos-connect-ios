@@ -72,5 +72,9 @@ struct RootView: View {
 }
 
 #Preview {
-    RootView(container: AppAssembly.assemble(baseURL: URL(string: "https://coach-os-tau.vercel.app")!))
+    RootView(container: AppAssembly.assemble(
+        baseURL: URL(string: "https://coach-os-tau.vercel.app")!,
+        supabaseProjectURL: URL(string: "https://fabtmkrzqrrwbvgaugjm.supabase.co")!,
+        supabaseAnonKey: "VUL_HIER_DE_ECHTE_PUBLISHABLE_KEY_IN"
+    ))
 }

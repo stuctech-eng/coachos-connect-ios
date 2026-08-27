@@ -41,45 +41,42 @@ public final class LocalSyncRepository: SyncRepositoryProtocol, @unchecked Senda
     }
 }
 
-/// Authenticatie tegen hetzelfde CoachOS-account als de PWA. Sprint 1 levert
-/// de structuur (sessieopslag, refresh-flow); de daadwerkelijke koppeling
-/// aan het CoachOS-auth-endpoint wordt ingevuld zodra dat contract vaststaat.
+/// Authenticatie tegen hetzelfde CoachOS-account als de PWA — via
+/// Supabase Auth rechtstreeks (`SupabaseAuthClientProtocol`), niet via
+/// een CoachOS-backend-endpoint. Bevestigd tijdens de contract-review
+/// (28 augustus 2026): CoachOS' eigen API-routes kennen geen
+/// signin/refresh-pad, authenticatie loopt via Supabase zelf. Sessies
+/// worden bewaard via `SecureTokenStoring` (Keychain in productie),
+/// nooit via de gewone `LocalStorageProtocol`.
 public final class RemoteAuthRepository: AuthRepositoryProtocol, @unchecked Sendable {
-    private let storage: LocalStorageProtocol
-    private let apiClient: APIClient
-    private let sessionKey = "auth_session"
+    private let authClient: SupabaseAuthClientProtocol
+    private let tokenStore: SecureTokenStoring
 
-    public init(storage: LocalStorageProtocol, apiClient: APIClient) {
-        self.storage = storage
-        self.apiClient = apiClient
+    public init(authClient: SupabaseAuthClientProtocol, tokenStore: SecureTokenStoring) {
+        self.authClient = authClient
+        self.tokenStore = tokenStore
     }
 
     public func currentSession() async -> AuthSession? {
-        try? await storage.load(AuthSession.self, forKey: sessionKey)
+        try? await tokenStore.loadSession()
     }
 
     public func signIn(email: String, password: String) async throws -> AuthSession {
-        struct SignInBody: Encodable { let email: String; let password: String }
-        let body = try JSONEncoder().encode(SignInBody(email: email, password: password))
-        let endpoint = APIEndpoint(path: CoachOSEndpoints.signIn(), method: .post, body: body)
-        let session: AuthSession = try await apiClient.send(endpoint)
-        try await storage.save(session, forKey: sessionKey)
+        let session = try await authClient.signIn(email: email, password: password)
+        try await tokenStore.save(session)
         return session
     }
 
     public func signOut() async throws {
-        try await storage.delete(forKey: sessionKey)
+        try await tokenStore.clear()
     }
 
     public func refreshSession() async throws -> AuthSession {
         guard let current = await currentSession() else {
             throw CoachOSConnectError.notAuthenticated
         }
-        struct RefreshBody: Encodable { let refreshToken: String }
-        let body = try JSONEncoder().encode(RefreshBody(refreshToken: current.refreshToken))
-        let endpoint = APIEndpoint(path: CoachOSEndpoints.refreshSession(), method: .post, body: body)
-        let session: AuthSession = try await apiClient.send(endpoint)
-        try await storage.save(session, forKey: sessionKey)
+        let session = try await authClient.refresh(refreshToken: current.refreshToken)
+        try await tokenStore.save(session)
         return session
     }
 }

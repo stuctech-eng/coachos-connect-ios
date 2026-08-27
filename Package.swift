@@ -92,6 +92,10 @@ let package = Package(
         .testTarget(
             name: "CoachOSConnectPM5Tests",
             dependencies: ["CoachOSConnectPM5", "CoachOSConnectCore", "CoachOSConnectBluetooth"]
+        ),
+        .testTarget(
+            name: "CoachOSConnectDataTests",
+            dependencies: ["CoachOSConnectData", "CoachOSConnectCore"]
         )
     ]
 )

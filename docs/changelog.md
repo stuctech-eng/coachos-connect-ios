@@ -257,3 +257,61 @@ van gegokt.
 - `sync()` — no-op; resultaatophaling (GET-commando's) hoort bij Sprint 7.
 - `connect()` verbindt met het eerst gevonden PM5-achtige apparaat; kiezen tussen meerdere gelijktijdig zichtbare PM5's wordt nog niet ondersteund door deze adapter zelf.
 - `startWorkout()`/`stopWorkout()` zijn geïmplementeerd volgens bevestigde commando's, maar niet gevalideerd tegen fysieke hardware — een forumdiscussie documenteert bekende onregelmatigheden in de PM5-CSAFE-statusmachine specifiek over Bluetooth op minstens één firmwareversie. Behandel als "geïmplementeerd, nog niet hardware-gevalideerd".
+
+---
+
+## Sprint 6b-1 — Native Supabase-authenticatie (CoachOS Connect-kant)
+
+Eerste stuk van Sprint 6b (Connect-kant van het CoachOS-contract).
+Uitsluitend authenticatie — workout-ophalen/-mapping en resultaat-
+upload volgen in 6b-2/6b-3, bewust niet in dezelfde patch (zelfde
+discipline als Sprint 5a/5b).
+
+**Toegevoegd**
+- `SupabaseAuthClientProtocol` + `SupabaseAuthClient`: authenticeert
+  rechtstreeks tegen Supabase's eigen Auth-REST-API (GoTrue), zonder de
+  officiële `supabase-swift`-SDK — consistent met "geen externe
+  dependencies tenzij noodzakelijk". E-mail/wachtwoord bevestigd
+  geïmplementeerd; Google-OAuth vanuit een native app bewust niet
+  meegenomen (aparte, grotere redirect-flow, buiten deze sprint).
+- `SecureTokenStoring` + `KeychainTokenStore`: sessieopslag via de iOS
+  Keychain (Security-framework, geen dependency), nooit via
+  `UserDefaults` of de gewone `FileLocalStorage`.
+- `RemoteAuthRepository` volledig herschreven: gebruikt nu
+  `SupabaseAuthClientProtocol`/`SecureTokenStoring` in plaats van het
+  nep-`/api/v1/connect/auth/...`-endpoint dat de contract-review
+  bevestigde als nooit bestaan te hebben.
+- Nieuwe module-testtarget `CoachOSConnectDataTests`: eerste tests voor
+  de Data-laag in dit project. `SupabaseAuthClient` getest via
+  `MockURLProtocol` (geen echt netwerk); `RemoteAuthRepository` getest
+  via fakes (geen netwerk, geen Keychain).
+- `AppAssembly.assemble(...)`: nieuwe parameters `supabaseProjectURL`/
+  `supabaseAnonKey`, los van `baseURL` (CoachOS-backend) — dit zijn
+  bewust twee verschillende adressen (Supabase's eigen Auth-server vs.
+  CoachOS' Next.js-backend).
+
+**Gecorrigeerd**
+- `CoachOSEndpoints.signIn()`/`refreshSession()` verwijderd — dode code,
+  niemand roept ze meer aan, en ze wezen sowieso naar een endpoint dat
+  nooit heeft bestaan.
+
+**Bewust niet aangeraakt (nog steeds oude, onjuiste paden)**
+- `CoachOSEndpoints.todaysWorkout()`/`workout(id:)`/`markCompleted()`/
+  `syncItem()` — herzien hiervan vraagt ook de CoachOS-
+  UniversalWorkout-mapping-laag (Sprint 6b-2). Half aanpassen zonder
+  die laag zou compileren maar functioneel kapot zijn — bewust niet
+  gedaan.
+
+**Eerlijke, expliciete beperking**
+- `KeychainTokenStore` is niet CI-getest — Keychain-toegang in de
+  GitHub Actions macOS-runner-context zoals `swift test` die aanroept,
+  is niet gegarandeerd hetzelfde als een echte, ontgrendelde iOS-
+  Keychain. Volgt het standaard, gedocumenteerde Security-framework-
+  patroon; behandel als "geïmplementeerd, nog niet hardware/CI-
+  gevalideerd" — zelfde discipline als bij `PM5Adapter`.
+- `supabaseAnonKey` in `App/CoachOSConnectApp.swift` staat als
+  expliciete placeholder (`VUL_HIER_DE_ECHTE_PUBLISHABLE_KEY_IN`) — de
+  echte waarde stond niet in de repository (`.env.example` bevat zelf
+  ook alleen een placeholder), moet uit het Supabase-dashboard gehaald
+  worden. De project-URL is wél echt (bevestigd publiek adres uit
+  `.env.example`).

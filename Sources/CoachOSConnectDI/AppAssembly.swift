@@ -17,7 +17,17 @@ public enum AppAssembly {
 
     /// Bouwt de volledige dependency graph. Wordt éénmalig aangeroepen bij
     /// app-opstart (zie `App/CoachOSConnectApp.swift`).
-    public static func assemble(baseURL: URL) -> DIContainer {
+    ///
+    /// - Parameters:
+    ///   - baseURL: CoachOS-backend (Next.js/Vercel), voor de
+    ///     workout-/sync-endpoints in `CoachOSEndpoints`.
+    ///   - supabaseProjectURL: het Supabase-project van CoachOS zelf
+    ///     (overeenkomend met CoachOS' `NEXT_PUBLIC_SUPABASE_URL`) —
+    ///     ANDERS dan `baseURL`, dit is Supabase's eigen adres, niet de
+    ///     CoachOS-backend.
+    ///   - supabaseAnonKey: de publieke Supabase-sleutel (overeenkomend
+    ///     met CoachOS' `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+    public static func assemble(baseURL: URL, supabaseProjectURL: URL, supabaseAnonKey: String) -> DIContainer {
         let container = DIContainer()
 
         // Infrastructuur
@@ -25,6 +35,8 @@ public enum AppAssembly {
         let localStorage = FileLocalStorage()
         let workoutCache = WorkoutCache(storage: localStorage)
         let deviceLayer = DeviceLayer()
+        let supabaseAuthClient = SupabaseAuthClient(projectURL: supabaseProjectURL, anonKey: supabaseAnonKey)
+        let tokenStore = KeychainTokenStore()
 
         // Generieke Bluetooth-laag (Sprint 3). Puur infrastructuur: nog aan
         // geen enkele adapter gekoppeld. Dat gebeurt pas in Sprint 5 zodra
@@ -38,7 +50,7 @@ public enum AppAssembly {
         container.register(BluetoothManagerProtocol.self) { bluetoothManager }
 
         // Repositories (Data-laag, achter Core-protocollen)
-        let authRepository = RemoteAuthRepository(storage: localStorage, apiClient: apiClient)
+        let authRepository = RemoteAuthRepository(authClient: supabaseAuthClient, tokenStore: tokenStore)
         let workoutRepository = RemoteWorkoutRepository(apiClient: apiClient, cache: workoutCache)
         let deviceRepository = LocalDeviceRepository(storage: localStorage, deviceLayer: deviceLayer)
         let syncRepository = LocalSyncRepository(storage: localStorage, apiClient: apiClient)

@@ -6,44 +6,42 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 5b — CSAFE Transport + BLE-koppeling + PM5Adapter
+## Status: Sprint 6b-1 — Native Supabase-authenticatie
 
-Ketenoverzicht: `CoachOS PWA → API/UniversalWorkout → CoachOS Connect →
-Bluetooth Manager → CSAFE Transport → PM5Adapter → Concept2 PM5`. Voor het
-eerst een volledig aanroepbare, in de Device Layer geregistreerde
-`DeviceAdapterProtocol`-implementatie.
+Ketenoverzicht: `iPhone → Supabase Auth (rechtstreeks) → JWT/Keychain →
+CoachOS API (Bearer-header, sinds Sprint 6a) → workout/resultaat`.
 
-### Wat is er gebouwd (cumulatief t/m Sprint 5b)
+Deze sprint levert uitsluitend authenticatie. Workout-ophalen/-mapping
+(CoachOS' eigen `UniversalWorkout` → Connect's `UniversalWorkout`) en
+resultaat-upload volgen in 6b-2/6b-3.
 
-**Sprint 1 + patch — Fundament**
-- Swift Package, Clean Architecture, `DIContainer`/`AppAssembly`
-- `DeviceAdapterProtocol` (async), `DeviceState`/`DeviceStateMachine`
-- `UniversalWorkout`/`WorkoutBlock`/`RepeatGroup`, capability-systeem
-- Repository-implementaties, `APIClient` (`/api/v1/connect/...`), `FileLocalStorage`
-- Minimale SwiftUI-shell, tests
+### Wat is er gebouwd (cumulatief t/m Sprint 6b-1)
 
-**Sprint 3 — Generieke Bluetooth Manager**
-- Module `CoachOSConnectBluetooth`: `BluetoothManagerProtocol`, `CoreBluetoothManager`, `MockBluetoothManager`
+**Sprint 1 t/m 5b** — zie eerdere secties hieronder/changelog: fundament,
+generieke Bluetooth-laag, device discovery, PM5/CSAFE-encoding + adapter.
 
-**Sprint 4 — Device Discovery / UX**
-- Module `CoachOSConnectDeviceDiscovery`, `App/DevicesView.swift`
+**Sprint 6a (backend, `coachOS`-repo, apart van deze repository)**
+- Gedeelde `getAuthenticatedUser()`-helper: Bearer-token eerst, dan
+  cookie — geen tweede auth-systeem
+- `coachos_connect` toegevoegd aan de Source Priority Policy
+  (prioriteit 110, boven `concept2`s 100)
 
-**Sprint 5a — PM5/CSAFE-encoding**
-- Module `CoachOSConnectPM5`: `CSAFEFrame`, `PM5ProprietaryCommand`, `PM5Frame`, `PM5WorkoutProgrammer`, `PM5BLEConstants`
-
-**Sprint 5b — CSAFE Transport + BLE-koppeling + PM5Adapter (nieuw)**
-- `CSAFETransport`: koppelt CSAFE-framing aan `BluetoothManagerProtocol`
-- `PM5ControlCommand`: bevestigde `GOINUSE`/`GOFINISHED`-statuscommando's
-- `PM5Adapter`: volledige, geregistreerde `DeviceAdapterProtocol`-implementatie
-- `AppAssembly`: PM5-registratie bij de `DeviceLayer` (placeholder sinds Sprint 1 ingevuld)
+**Sprint 6b-1 — Native Supabase-authenticatie (nieuw, deze repository)**
+- `SupabaseAuthClient`: rechtstreeks tegen Supabase's Auth-REST-API,
+  geen SDK-dependency
+- `KeychainTokenStore`: sessieopslag via de iOS Keychain
+- `RemoteAuthRepository` herschreven: geen nep-CoachOS-auth-endpoint
+  meer
+- Eerste tests voor de Data-laag (`CoachOSConnectDataTests`)
 
 ### Wat hier bewust nog niet in zit
-- `pauseWorkout()`/`resumeWorkout()` — geen bevestigd commando, expliciet geweigerd
-- Live metrics-decodering (C2 Rowing Service) — Sprint 8
-- Workoutresultaat ophalen na afloop — Sprint 7
-- Keuze tussen meerdere gelijktijdig zichtbare PM5's
-- Hardwarevalidatie van `startWorkout()`/`stopWorkout()` — geïmplementeerd volgens bevestigde commando's, nog niet tegen een fysieke PM5 getest
-- Audio Coach / Haptic Engine, echte backend-koppeling
+- CoachOS-workout ophalen/mappen naar Connect's `UniversalWorkout` —
+  `CoachOSEndpoints` wijst voor workouts/sync nog naar de oude, onjuiste
+  `/api/v1/connect/...`-paden (Sprint 6b-2)
+- Resultaat-upload naar `activity_sessions` (Sprint 6b-3)
+- SPM als informatieve instructie (Optie B) — UI-werk, later
+- Google-OAuth vanuit Connect (alleen e-mail/wachtwoord nu)
+- Live metrics (Sprint 8), workoutresultaat via GET-commando's (Sprint 7)
 
 ## Projectstructuur
 
@@ -76,10 +74,16 @@ handmatig opbouwen is foutgevoelig. In plaats daarvan:
 
 1. Nieuw Xcode-project → App → SwiftUI, taal Swift, naam bijv. `CoachOSConnect`.
 2. File → Add Package Dependencies → Add Local... → wijs naar de root van deze repo (waar `Package.swift` staat).
-3. Voeg alle zes de library-targets toe aan het App-target.
+3. Voeg alle zeven de library-targets toe aan het App-target.
 4. Vervang de gegenereerde `ContentView.swift`/`App.swift` door de bestanden uit `App/` in deze repo.
 5. Neem de sleutels uit `App/Info-template.plist` over in het Info.plist van het App-target — vanaf nu relevant, want `CoachOSConnectBluetooth` gebruikt CoreBluetooth.
 6. Build & run.
+
+**Vóór stap 6, verplicht:** vervang `VUL_HIER_DE_ECHTE_PUBLISHABLE_KEY_IN`
+in `App/CoachOSConnectApp.swift` (en de `#Preview` in `App/RootView.swift`)
+door de echte Supabase publishable key uit het CoachOS Supabase-
+dashboard (Project Settings → API). Zonder deze wijziging faalt elke
+aanmeldpoging met een duidelijke serverfout.
 
 ## Architectuurprincipes (blijven gelden in elke volgende sprint)
 

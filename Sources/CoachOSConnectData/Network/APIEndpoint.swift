@@ -27,15 +27,27 @@ public enum APIClientError: Error, Sendable {
     case decodingFailed(underlying: Error)
 }
 
-/// Bekende endpoints richting de CoachOS-backend. Wordt uitgebreid naarmate
-/// repository-implementaties in latere sprints echte calls gaan doen; in
-/// Sprint 1 dient dit als vaste structuur, nog niet gekoppeld aan een live
-/// backend-contract.
+/// Bekende endpoints richting de CoachOS-backend.
 ///
-/// Alle paden zijn geversioneerd (`/api/v1/...`). Een toekomstige v2 van het
-/// CoachOS-contract kan zo naast v1 blijven bestaan zolang oudere
-/// Connect-versies nog in gebruik zijn, in plaats van dat elke
-/// backend-wijziging direct alle geïnstalleerde apps breekt.
+/// BELANGRIJKE CORRECTIE (contract-review, 28 augustus 2026): de
+/// `/api/v1/connect/...`-namespace hieronder is NOOIT een echt CoachOS-
+/// contract geweest — zelf verzonnen in Sprint 1, vóór er een backend was
+/// om tegen te toetsen. De daadwerkelijke CoachOS-routes zijn anders
+/// (`/api/today`, `/api/specialists/rowing/training-plan/workout?sessieId=...`,
+/// géén auth-endpoints — authenticatie loopt via Supabase Auth
+/// rechtstreeks, zie `SupabaseAuthClient`).
+///
+/// Sprint 6b-1 (deze patch) corrigeert alleen de auth-kant:
+/// `signIn()`/`refreshSession()` zijn verwijderd (niemand roept ze meer
+/// aan — `RemoteAuthRepository` gebruikt nu `SupabaseAuthClient`).
+///
+/// `todaysWorkout()`/`workout(id:)`/`markCompleted`/`syncItem` staan
+/// hieronder BEWUST nog ongewijzigd (nog steeds de oude, onjuiste
+/// `/api/v1/connect/...`-paden) — het herzien hiervan naar de echte
+/// paden vraagt ook de CoachOS-UniversalWorkout-mapping-laag (Sprint
+/// 6b-2), niet alleen een padwijziging. Half aanpassen zonder die laag
+/// zou een compilerende maar functioneel kapotte staat opleveren; dat is
+/// bewust niet gedaan.
 public enum CoachOSEndpoints {
     private static let basePath = "/api/v1/connect"
 
@@ -54,7 +66,4 @@ public enum CoachOSEndpoints {
     public static func syncItem(body: Data) -> APIEndpoint {
         APIEndpoint(path: "\(basePath)/sync", method: .post, body: body)
     }
-
-    public static func signIn() -> String { "\(basePath)/auth/signin" }
-    public static func refreshSession() -> String { "\(basePath)/auth/refresh" }
 }
