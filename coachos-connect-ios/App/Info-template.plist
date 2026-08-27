@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template, geen actief Info.plist.
+
+  Xcode genereert bij een nieuw App-target automatisch een Info.plist.
+  Neem de onderstaande sleutels daarin over zodra Sprint 3/4 (Bluetooth)
+  start. Sprint 1 heeft deze rechten nog niet nodig, maar ze staan hier
+  vast zodat de vereiste niet vergeten wordt.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>CoachOS Connect gebruikt Bluetooth om te verbinden met trainingsapparatuur (bijv. roeimachine, smart trainer, hartslagband).</string>
+
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>CoachOS Connect gebruikt Bluetooth om te verbinden met trainingsapparatuur.</string>
+
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>bluetooth-central</string>
+        <string>processing</string>
+    </array>
+</dict>
+</plist>
