@@ -6,19 +6,14 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 5a — PM5/CSAFE-encoding (pure, nog geen BLE)
+## Status: Sprint 5b — CSAFE Transport + BLE-koppeling + PM5Adapter
 
 Ketenoverzicht: `CoachOS PWA → API/UniversalWorkout → CoachOS Connect →
-Bluetooth Manager → Device Discovery/UX → BLE Transport (Sprint 5b) →
-CSAFE Transport (Sprint 5b) → PM5 Adapter (Sprint 5b) → Concept2 PM5`.
+Bluetooth Manager → CSAFE Transport → PM5Adapter → Concept2 PM5`. Voor het
+eerst een volledig aanroepbare, in de Device Layer geregistreerde
+`DeviceAdapterProtocol`-implementatie.
 
-Deze sprint levert de PM5/CSAFE-**encoding**-laag: hoe je bytes bouwt die
-de PM5 begrijpt. Nog geen BLE-verbinding — dat is Sprint 5b. Alle
-protocoldetails zijn geverifieerd tegen officiële Concept2-documentatie
-en/of werkende open-sourcecode vóór implementatie (zie changelog voor het
-volledige onderzoeksverslag).
-
-### Wat is er gebouwd (cumulatief t/m Sprint 5a)
+### Wat is er gebouwd (cumulatief t/m Sprint 5b)
 
 **Sprint 1 + patch — Fundament**
 - Swift Package, Clean Architecture, `DIContainer`/`AppAssembly`
@@ -29,22 +24,26 @@ volledige onderzoeksverslag).
 
 **Sprint 3 — Generieke Bluetooth Manager**
 - Module `CoachOSConnectBluetooth`: `BluetoothManagerProtocol`, `CoreBluetoothManager`, `MockBluetoothManager`
-- Bevestigd gebouwd en getest door een echte Apple-toolchain via GitHub Actions CI
 
 **Sprint 4 — Device Discovery / UX**
-- Module `CoachOSConnectDeviceDiscovery`: `DiscoveredDeviceList`, `DeviceDiscoveryController`
-- `App/DevicesView.swift`
+- Module `CoachOSConnectDeviceDiscovery`, `App/DevicesView.swift`
 
-**Sprint 5a — PM5/CSAFE-encoding (nieuw)**
-- Module `CoachOSConnectPM5`: `CSAFEFrame`/`CSAFEByteStuffing` (framing, geverifieerd tegen echte gevangen frames), `PM5ProprietaryCommand` (de acht bevestigde workoutprogrammeer-commando's), `PM5Frame` (`SETPMCFG_CMD`-wrapper), `PM5WorkoutProgrammer` (`UniversalWorkout` → PM5-intervalblokken voor het bevestigde MVP-geval), `PM5BLEConstants` (GATT-UUID's, nog niet gekoppeld)
-- Nog géén BLE-verbinding, nog géén `PM5Adapter`
+**Sprint 5a — PM5/CSAFE-encoding**
+- Module `CoachOSConnectPM5`: `CSAFEFrame`, `PM5ProprietaryCommand`, `PM5Frame`, `PM5WorkoutProgrammer`, `PM5BLEConstants`
+
+**Sprint 5b — CSAFE Transport + BLE-koppeling + PM5Adapter (nieuw)**
+- `CSAFETransport`: koppelt CSAFE-framing aan `BluetoothManagerProtocol`
+- `PM5ControlCommand`: bevestigde `GOINUSE`/`GOFINISHED`-statuscommando's
+- `PM5Adapter`: volledige, geregistreerde `DeviceAdapterProtocol`-implementatie
+- `AppAssembly`: PM5-registratie bij de `DeviceLayer` (placeholder sinds Sprint 1 ingevuld)
 
 ### Wat hier bewust nog niet in zit
-- BLE-transportkoppeling voor PM5 (`CSAFETransport`/`BLETransport`) en een `PM5Adapter` conform `DeviceAdapterProtocol` — Sprint 5b
-- Response-/statusframe-decodering, live metrics — latere sprints
-- Undefined-rest-workouts, afstandgebaseerde intervallen — expliciet geweigerd, niet gegokt
-- Audio Coach / Haptic Engine
-- Echte backend-koppeling tegen een live CoachOS-contract
+- `pauseWorkout()`/`resumeWorkout()` — geen bevestigd commando, expliciet geweigerd
+- Live metrics-decodering (C2 Rowing Service) — Sprint 8
+- Workoutresultaat ophalen na afloop — Sprint 7
+- Keuze tussen meerdere gelijktijdig zichtbare PM5's
+- Hardwarevalidatie van `startWorkout()`/`stopWorkout()` — geïmplementeerd volgens bevestigde commando's, nog niet tegen een fysieke PM5 getest
+- Audio Coach / Haptic Engine, echte backend-koppeling
 
 ## Projectstructuur
 
@@ -55,8 +54,8 @@ coachos-connect-ios/
 │   ├── CoachOSConnectCore/        Domain: modellen, protocollen, use cases, errors
 │   ├── CoachOSConnectBluetooth/   Generieke BLE-laag (CoreBluetooth), geen fabrikantkennis
 │   ├── CoachOSConnectDeviceDiscovery/ Discovery/UX-presentatielaag bovenop Bluetooth
-│   ├── CoachOSConnectPM5/         PM5/CSAFE-encoding (Sprint 5a), nog geen BLE-koppeling
-│   ├── CoachOSConnectDeviceLayer/ Device Layer: registry + coördinatie (nog geen adapters)
+│   ├── CoachOSConnectPM5/         PM5/CSAFE-encoding + BLE-transport + PM5Adapter
+│   ├── CoachOSConnectDeviceLayer/ Device Layer: registry + coördinatie (PM5Adapter geregistreerd)
 │   ├── CoachOSConnectData/        Repository-implementaties, API client, lokale opslag
 │   └── CoachOSConnectDI/          DIContainer + AppAssembly (enige plek die alles koppelt)
 ├── App/                           SwiftUI-shell — zie "Xcode opzetten" hieronder
@@ -95,9 +94,8 @@ handmatig opbouwen is foutgevoelig. In plaats daarvan:
 
 ## Volgende sprints (uit de architectuurvisie)
 
-- Sprint 5b — CSAFE Transport + BLE-koppeling + `PM5Adapter` conform `DeviceAdapterProtocol` (bouwt voort op de encoding-laag uit Sprint 5a)
 - Sprint 6 — Live CoachOS API-integratie
-- Sprint 7 — Workout Sync
-- Sprint 8 — Live Metrics
+- Sprint 7 — Workout Sync (incl. resultaatophaling via GET-commando's)
+- Sprint 8 — Live Metrics (C2 Rowing Service-decodering)
 - Sprint 9 — Workout Player
 - Sprint 10 — Audio Coach + Haptics

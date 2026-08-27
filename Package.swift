@@ -57,7 +57,7 @@ let package = Package(
         ),
         .target(
             name: "CoachOSConnectPM5",
-            dependencies: ["CoachOSConnectCore"]
+            dependencies: ["CoachOSConnectCore", "CoachOSConnectBluetooth"]
         ),
         .target(
             name: "CoachOSConnectDeviceLayer",
@@ -91,7 +91,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CoachOSConnectPM5Tests",
-            dependencies: ["CoachOSConnectPM5", "CoachOSConnectCore"]
+            dependencies: ["CoachOSConnectPM5", "CoachOSConnectCore", "CoachOSConnectBluetooth"]
         )
     ]
 )

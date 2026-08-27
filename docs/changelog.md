@@ -207,3 +207,53 @@ bevestigd vóór er één regel code geschreven werd:
 - Live metrics — hoort bij de C2 Rowing Service, een latere sprint.
 - Undefined-rest-workouts — enum-waarden nu bevestigd, werkende sequentie nog niet; blijft expliciet geweigerd.
 - Afstandgebaseerde intervallen — de bevestigde MVP-keten is tijdgebaseerd.
+
+---
+
+## Sprint 5b — CSAFE Transport + BLE-koppeling + PM5Adapter
+
+Verbindt de encoding-laag uit Sprint 5a met de generieke Bluetooth-laag uit
+Sprint 3. Voor het eerst een `DeviceAdapterProtocol`-implementatie die
+daadwerkelijk aanroepbaar is via de Device Layer.
+
+**Aanvullend onderzoek vóór implementatie**
+
+`startWorkout()`/`stopWorkout()` vragen om CSAFE-commando's die niet in het
+Sprint 5a-onderzoek zaten (dat ging alleen over workout-programmeren, niet
+over start/stop). Opgezocht en bevestigd via drie onafhankelijke bronnen
+die elkaar exact bevestigen (officiële PM3-documentatie,
+tijmenvangulik's PM3Monitor-C-header, het losse c2api-project) plus
+daadwerkelijk PM5-over-BLE-verkeer uit een Concept2-forumdiscussie:
+`CSAFE_GOINUSE_CMD = 0x85` (dichtstbijzijnde equivalent van "start") en
+`CSAFE_GOFINISHED_CMD = 0x86` ("stop"). Voor pauzeren/hervatten is **geen**
+bevestigd commando gevonden — blijft daarom expliciet geweigerd in plaats
+van gegokt.
+
+**Toegevoegd**
+- `PM5ControlCommand`: de bevestigde standaard CSAFE-statuscommando's (`GETSTATUS`, `RESET`, `GOIDLE`, `GOHAVEID`, `GOINUSE`, `GOFINISHED`, `GOREADY`) — "short commands", geen wrapper, in tegenstelling tot de proprietary workoutcommando's uit Sprint 5a.
+- `CSAFETransport`: koppelt CSAFE-framing aan `BluetoothManagerProtocol`. Verstuurt naar de Receive-characteristic (0x0021), ontvangt via notify-abonnement op de Transmit-characteristic (0x0022); verwerpt frames die niet aan de checksum voldoen stilzwijgend in plaats van ze als geldige data door te geven.
+- `PM5Adapter`: volledige `DeviceAdapterProtocol`-implementatie. `connect()` scant (met timeout — zie hieronder), verbindt, ontdekt services, abonneert op responses; `sendWorkout()` gebruikt `PM5WorkoutProgrammer` + `CSAFETransport`; `startWorkout()`/`stopWorkout()` gebruiken de nieuw bevestigde commando's.
+- `AppAssembly`: `PM5Adapter` daadwerkelijk geregistreerd bij de `DeviceLayer` — de placeholder die sinds Sprint 1 klaarstond is nu ingevuld.
+- Tests (`CSAFETransportTests`, `PM5AdapterTests`): send/receive via `MockBluetoothManager`, een echt gevangen CSAFE-frame als fixture, connect/disconnect-statusovergangen, en elk expliciet geweigerd geval (pauzeren, hervatten) met een eigen test.
+
+**Tijdens het bouwen zelf gevonden en gerepareerd (niet pas in CI)**
+- `DeviceAdapterProtocol.state` is een synchrone `{ get }`-property; een
+  `actor`-implementatie kan die niet zonder `await` aanbieden. `PM5Adapter`
+  is daarom een `final class` met `NSLock`, hetzelfde patroon als
+  `CoreBluetoothManager` — niet een architectuurwijziging, wel een
+  toepassing van een bestaand patroon.
+- Zonder timeout zou `connect()` voor altijd blijven hangen als er geen
+  PM5 gevonden wordt (de discovery-stream sluit nooit vanzelf af).
+  Opgelost met een race tussen discovery en een instelbare timeout
+  (standaard 10s — een software-keuze, geen bevestigd PM5-specifiek getal).
+- Dezelfde abonneer-vóór-actie-volgorde als de Sprint 4-racefix toegepast
+  op `connect()`: `discoveredDevicesStream()` wordt nu vóór `startScan()`
+  aangeroepen, niet erna.
+
+**Bewust niet toegevoegd / bekende beperkingen (zie ook de doc-comments in `PM5Adapter.swift`)**
+- `pauseWorkout()`/`resumeWorkout()` — expliciet geweigerd, geen bevestigd commando.
+- `metricsStream()` — lege stream; C2 Rowing Service-decodering hoort bij Sprint 8.
+- `batteryLevel()` — altijd `nil`; geen bevestigde characteristic gevonden.
+- `sync()` — no-op; resultaatophaling (GET-commando's) hoort bij Sprint 7.
+- `connect()` verbindt met het eerst gevonden PM5-achtige apparaat; kiezen tussen meerdere gelijktijdig zichtbare PM5's wordt nog niet ondersteund door deze adapter zelf.
+- `startWorkout()`/`stopWorkout()` zijn geïmplementeerd volgens bevestigde commando's, maar niet gevalideerd tegen fysieke hardware — een forumdiscussie documenteert bekende onregelmatigheden in de PM5-CSAFE-statusmachine specifiek over Bluetooth op minstens één firmwareversie. Behandel als "geïmplementeerd, nog niet hardware-gevalideerd".

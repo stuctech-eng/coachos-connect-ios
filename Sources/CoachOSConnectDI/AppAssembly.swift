@@ -1,6 +1,7 @@
 import Foundation
 import CoachOSConnectCore
 import CoachOSConnectBluetooth
+import CoachOSConnectPM5
 import CoachOSConnectDeviceLayer
 import CoachOSConnectData
 
@@ -68,18 +69,16 @@ public enum AppAssembly {
     }
 
     /// Centrale plek om adapter-fabrieken te registreren bij de `DeviceLayer`.
-    /// Nog steeds leeg — de Bluetooth-laag uit Sprint 3 kent geen PM5. Vanaf
-    /// Sprint 5 komt hier bijvoorbeeld:
-    ///
-    /// ```swift
-    /// Task {
-    ///     await deviceLayer.register(
-    ///         { PM5Adapter(bluetooth: bluetoothManager) },
-    ///         for: PM5Adapter.descriptor
-    ///     )
-    /// }
-    /// ```
+    /// Sinds Sprint 5b: `PM5Adapter` wordt hier geregistreerd, exact zoals de
+    /// placeholder sinds Sprint 1 al aangaf. Nieuwe fabrikanten komen hier
+    /// op dezelfde manier bij, zonder dat use cases of UI hoeven te
+    /// wijzigen.
     private static func registerDeviceAdapters(in deviceLayer: DeviceLayer, bluetoothManager: BluetoothManagerProtocol) {
-        // Bewust leeg tot en met Sprint 4. PM5-registratie start in Sprint 5.
+        Task {
+            await deviceLayer.register(
+                { PM5Adapter(bluetooth: bluetoothManager) },
+                for: PM5Adapter.descriptor
+            )
+        }
     }
 }
