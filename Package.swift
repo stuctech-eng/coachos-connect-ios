@@ -10,6 +10,9 @@ let package = Package(
         // Domain: modellen, protocols, use cases. Geen dependencies.
         .library(name: "CoachOSConnectCore", targets: ["CoachOSConnectCore"]),
 
+        // Generieke BLE-laag: CoreBluetooth. Kent geen fabrikanten/protocollen.
+        .library(name: "CoachOSConnectBluetooth", targets: ["CoachOSConnectBluetooth"]),
+
         // Device Layer: universele adapter-architectuur. Geen hardware-implementaties.
         .library(name: "CoachOSConnectDeviceLayer", targets: ["CoachOSConnectDeviceLayer"]),
 
@@ -20,11 +23,15 @@ let package = Package(
         .library(name: "CoachOSConnectDI", targets: ["CoachOSConnectDI"])
     ],
     dependencies: [
-        // Bewust leeg. Geen externe dependencies in Sprint 1.
+        // Bewust leeg. Geen externe dependencies.
     ],
     targets: [
         .target(
             name: "CoachOSConnectCore",
+            dependencies: []
+        ),
+        .target(
+            name: "CoachOSConnectBluetooth",
             dependencies: []
         ),
         .target(
@@ -39,6 +46,7 @@ let package = Package(
             name: "CoachOSConnectDI",
             dependencies: [
                 "CoachOSConnectCore",
+                "CoachOSConnectBluetooth",
                 "CoachOSConnectDeviceLayer",
                 "CoachOSConnectData"
             ]
@@ -46,6 +54,10 @@ let package = Package(
         .testTarget(
             name: "CoachOSConnectCoreTests",
             dependencies: ["CoachOSConnectCore"]
+        ),
+        .testTarget(
+            name: "CoachOSConnectBluetoothTests",
+            dependencies: ["CoachOSConnectBluetooth"]
         )
     ]
 )

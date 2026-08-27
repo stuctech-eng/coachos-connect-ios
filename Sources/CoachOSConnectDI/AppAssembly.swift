@@ -1,5 +1,6 @@
 import Foundation
 import CoachOSConnectCore
+import CoachOSConnectBluetooth
 import CoachOSConnectDeviceLayer
 import CoachOSConnectData
 
@@ -24,9 +25,16 @@ public enum AppAssembly {
         let workoutCache = WorkoutCache(storage: localStorage)
         let deviceLayer = DeviceLayer()
 
+        // Generieke Bluetooth-laag (Sprint 3). Puur infrastructuur: nog aan
+        // geen enkele adapter gekoppeld. Dat gebeurt pas in Sprint 5 zodra
+        // `PM5Adapter` bestaat en zelf een `BluetoothManagerProtocol`
+        // injecteert.
+        let bluetoothManager = CoreBluetoothManager()
+
         container.register(APIClient.self) { apiClient }
         container.register(LocalStorageProtocol.self) { localStorage }
         container.register(DeviceLayer.self) { deviceLayer }
+        container.register(BluetoothManagerProtocol.self) { bluetoothManager }
 
         // Repositories (Data-laag, achter Core-protocollen)
         let authRepository = RemoteAuthRepository(storage: localStorage, apiClient: apiClient)
@@ -54,23 +62,24 @@ public enum AppAssembly {
             SyncPendingItemsUseCase(syncRepository: syncRepository)
         }
 
-        registerDeviceAdapters(in: deviceLayer)
+        registerDeviceAdapters(in: deviceLayer, bluetoothManager: bluetoothManager)
 
         return container
     }
 
     /// Centrale plek om adapter-fabrieken te registreren bij de `DeviceLayer`.
-    /// Sprint 1 registreert bewust nog niets — zie
-    /// `Sources/CoachOSConnectDeviceLayer/Adapters/README.md`. Vanaf de sprint
-    /// waarin de eerste adapter (PM5) wordt gebouwd, komt de registratie hier
-    /// bij, bijvoorbeeld:
+    /// Nog steeds leeg — de Bluetooth-laag uit Sprint 3 kent geen PM5. Vanaf
+    /// Sprint 5 komt hier bijvoorbeeld:
     ///
     /// ```swift
     /// Task {
-    ///     await deviceLayer.register({ PM5Adapter() }, for: PM5Adapter.descriptor)
+    ///     await deviceLayer.register(
+    ///         { PM5Adapter(bluetooth: bluetoothManager) },
+    ///         for: PM5Adapter.descriptor
+    ///     )
     /// }
     /// ```
-    private static func registerDeviceAdapters(in deviceLayer: DeviceLayer) {
-        // Bewust leeg in Sprint 1.
+    private static func registerDeviceAdapters(in deviceLayer: DeviceLayer, bluetoothManager: BluetoothManagerProtocol) {
+        // Bewust leeg tot en met Sprint 4. PM5-registratie start in Sprint 5.
     }
 }

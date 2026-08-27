@@ -6,35 +6,38 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 1 — Fundament (architectuur) + patch
+## Status: Sprint 3 — Generieke Bluetooth Manager
 
-Sprint 1 levert de volledige projectstructuur, Clean Architecture, werkende
-Dependency Injection en het Device Layer-protocol. **Er zit in deze sprint
-bewust geen enkele hardware-implementatie**: geen Bluetooth, geen PM5, geen
-fabrikant-SDK, geen audio coach, geen verwerking van live metrics. Eerst de
-lege stekkerdoos, daarna de apparaten.
+Ketenoverzicht: `CoachOS PWA → API/UniversalWorkout → CoachOS Connect →
+Bluetooth Manager → BLE Transport → CSAFE Transport (Sprint 5) → PM5
+Adapter (Sprint 5) → Concept2 PM5`.
 
-### Wat is er gebouwd
-- Swift Package met vier modules: `CoachOSConnectCore`, `CoachOSConnectDeviceLayer`, `CoachOSConnectData`, `CoachOSConnectDI`
-- Clean Architecture: Domain (protocollen, modellen, use cases) kent geen implementatiedetails
-- `DeviceAdapterProtocol` (volledig `async throws`) — de universele interface die elke toekomstige fabrikant-adapter implementeert
-- `DeviceState` + `DeviceStateMachine` — volledige levenscyclus (scanning → connecting → connected → workoutLoaded → running ⇄ paused → finished → syncing → error) met expliciet toegestane transities
-- Capability-systeem (`DeviceCapability`) — apparaten worden bevraagd op vaardigheid, nooit op merknaam
-- `DeviceLayer` + `DeviceAdapterRegistry` — coördinatiepunt boven alle adapters, registratie via fabrieksfuncties, geen naam-gebaseerde branching
-- `UniversalWorkout` / `WorkoutBlock` (`.step` / `.repeatGroup`) / `WorkoutTarget` — hardware- én sport-onafhankelijk trainingsmodel, met `expandedSteps` voor adapters die geen herhalingsstructuur hoeven te begrijpen
-- Gestandaardiseerd metrics-model: `LiveMetricSample` / `LiveMetricsBatch` / `MetricType` — één vorm voor elk apparaat, apparaat vult alleen in wat het heeft
-- Repository-protocollen + implementaties: workouts, devices, sync, auth
-- `APIClient` (generieke HTTP-laag, geversioneerd onder `/api/v1/connect/...`) en `FileLocalStorage` (offline-first cache)
-- Lichtgewicht `DIContainer` zonder externe dependencies
-- Minimale SwiftUI-shell (`App/`) die de volledige dependency graph aantoonbaar laat werken
-- Unit tests die aantonen dat de Domain-laag én de state machine zonder UI of hardware testbaar zijn
+Deze sprint levert uitsluitend de generieke BLE-laag. **Geen PM5-kennis,
+geen CSAFE, geen Concept2-specifieke UUID's** — die komen pas in Sprint 5.
+
+### Wat is er gebouwd (cumulatief t/m Sprint 3)
+
+**Sprint 1 + patch — Fundament**
+- Swift Package, Clean Architecture, `DIContainer`/`AppAssembly`
+- `DeviceAdapterProtocol` (async), `DeviceState`/`DeviceStateMachine`
+- `UniversalWorkout`/`WorkoutBlock`/`RepeatGroup`, capability-systeem
+- Repository-implementaties, `APIClient` (`/api/v1/connect/...`), `FileLocalStorage`
+- Minimale SwiftUI-shell, tests
+
+**Sprint 3 — Generieke Bluetooth Manager (nieuw)**
+- Nieuwe module `CoachOSConnectBluetooth`, geen dependencies (ook niet op Core)
+- `BluetoothManagerProtocol`: scan, discovery, connect/disconnect, reconnect-beleid, verbindingsstatus, service-/characteristic-discovery, read/write/subscribe
+- `BluetoothConnectionState` + `BluetoothStateMachine` — eigen, kleinere state machine dan `DeviceState`, bewust gescheiden
+- `CoreBluetoothManager` — enige plek met `import CoreBluetooth`
+- `MockBluetoothManager` — testdubbel zonder hardware, herbruikbaar in Sprint 5
+- `AppAssembly` registreert de Bluetooth Manager als infrastructuur, nog aan geen adapter gekoppeld
 
 ### Wat hier bewust nog niet in zit
-- Bluetooth / BLE-communicatie
-- PM5- of andere fabrikant-adapters
-- Live metrics-verwerking (alleen het datamodel/protocol staat vast)
+- PM5- of andere fabrikant-adapters, CSAFE-commando's, Concept2-UUID's
+- Live metrics-verwerking
 - Audio Coach / Haptic Engine
-- Echte backend-koppeling (endpoints zijn gedefinieerd, nog niet tegen een live contract getest)
+- Echte backend-koppeling tegen een live CoachOS-contract
+- Compilatie/tests tegen een echte CoreBluetooth-runtime (vereist Xcode/simulator of fysiek toestel)
 
 ## Projectstructuur
 
@@ -43,11 +46,14 @@ coachos-connect-ios/
 ├── Package.swift
 ├── Sources/
 │   ├── CoachOSConnectCore/        Domain: modellen, protocollen, use cases, errors
+│   ├── CoachOSConnectBluetooth/   Generieke BLE-laag (CoreBluetooth), geen fabrikantkennis
 │   ├── CoachOSConnectDeviceLayer/ Device Layer: registry + coördinatie (nog geen adapters)
 │   ├── CoachOSConnectData/        Repository-implementaties, API client, lokale opslag
 │   └── CoachOSConnectDI/          DIContainer + AppAssembly (enige plek die alles koppelt)
 ├── App/                           SwiftUI-shell — zie "Xcode opzetten" hieronder
-├── Tests/CoachOSConnectCoreTests/
+├── Tests/
+│   ├── CoachOSConnectCoreTests/
+│   └── CoachOSConnectBluetoothTests/
 └── docs/
     └── changelog.md
 ```
@@ -60,27 +66,26 @@ handmatig opbouwen is foutgevoelig. In plaats daarvan:
 
 1. Nieuw Xcode-project → App → SwiftUI, taal Swift, naam bijv. `CoachOSConnect`.
 2. File → Add Package Dependencies → Add Local... → wijs naar de root van deze repo (waar `Package.swift` staat).
-3. Voeg alle vier de library-targets toe aan het App-target.
+3. Voeg alle vijf de library-targets toe aan het App-target.
 4. Vervang de gegenereerde `ContentView.swift`/`App.swift` door de bestanden uit `App/` in deze repo.
-5. Neem de sleutels uit `App/Info-template.plist` over in het Info.plist van het App-target zodra Bluetooth-sprints starten (nu nog niet nodig).
+5. Neem de sleutels uit `App/Info-template.plist` over in het Info.plist van het App-target — vanaf nu relevant, want `CoachOSConnectBluetooth` gebruikt CoreBluetooth.
 6. Build & run.
 
 ## Architectuurprincipes (blijven gelden in elke volgende sprint)
 
 1. CoachOS blijft het brein; Connect voert uit.
-2. Geen sportlogica in de Device Layer.
+2. Geen sportlogica in de Device Layer, geen fabrikantkennis in de Bluetooth-laag.
 3. Elke fabrikant krijgt een eigen `DeviceAdapterProtocol`-implementatie; bestaande code wijzigt niet.
 4. Apparaten worden bevraagd op capability, nooit op merk/model in aanroepcode.
-5. Offline-first: lokale cache eerst, netwerk als aanvulling.
-6. Geen externe dependencies tenzij noodzakelijk.
-7. UI kent alleen use cases en Core-protocollen, nooit concrete Data-implementaties.
+5. CSAFE/protocolsemantiek en BLE-transport blijven gescheiden lagen (Sprint 5: `PM5Adapter` bovenop `BluetoothManagerProtocol`, niet erin verweven).
+6. Offline-first: lokale cache eerst, netwerk als aanvulling.
+7. Geen externe dependencies tenzij noodzakelijk.
+8. UI kent alleen use cases en Core-protocollen, nooit concrete Data-/Bluetooth-implementaties.
 
 ## Volgende sprints (uit de architectuurvisie)
 
-- Sprint 2 — Authenticatie (koppeling aan echte CoachOS-auth)
-- Sprint 3 — Generieke Bluetooth Manager
-- Sprint 4 — Device discovery / device UI
-- Sprint 5 — PM5 Adapter (eerste concrete implementatie)
+- Sprint 4 — Device discovery / device UI (bovenop `BluetoothManagerProtocol`, nog geen PM5-kennis)
+- Sprint 5 — PM5 Adapter + CSAFE (eerste concrete implementatie; onderzoek naar CSAFE-commando's, byte-encoding en open protocolvragen staat vast in de projectcontext)
 - Sprint 6 — Live CoachOS API-integratie
 - Sprint 7 — Workout Sync
 - Sprint 8 — Live Metrics
