@@ -55,3 +55,28 @@ identificeerde de correcte oorzaak en dezelfde fix, op een aparte branch
 geverifieerd door de branch-inhoud direct op te halen en te vergelijken —
 functioneel identiek aan deze wijziging. Deze changelog-entry en de
 daadwerkelijke merge lopen via de reguliere patch-route, niet via die PR.
+
+---
+
+## CI-fix — async-aanroep binnen XCTAssert-autoclosure
+
+Na de macOS-platformfix kwam de build voorbij het eerdere faalpunt en
+compileerde `CoachOSConnectBluetooth` succesvol (bevestigd via de Actions-
+log: Xcode 16.4, Apple Swift 6.1.2, target `arm64-apple-macosx14.0`). Nieuwe,
+losstaande compilerfout in `BluetoothManagerTests.swift`:
+
+```
+error: 'async' call in an autoclosure that does not support concurrency
+XCTAssertEqual(await mock.connectionState(for: deviceId), .disconnected)
+```
+
+**Oorzaak:** `XCTAssertEqual` neemt zijn argumenten als `@autoclosure () throws -> T`
+— niet async. Een `await`-aanroep direct binnen die autoclosure compileert niet.
+
+**Gewijzigd**
+- `Tests/CoachOSConnectBluetoothTests/BluetoothManagerTests.swift`:
+  `test_mockBluetoothManager_connectUpdatesConnectionState` aangepast — de
+  twee `await mock.connectionState(for:)`-aanroepen worden nu eerst in een
+  lokale `let` vastgelegd, pas daarna geasserteerd. Geen enkele andere test
+  of productiecode aangeraakt; dit was de enige plek in de repository met
+  dit patroon.

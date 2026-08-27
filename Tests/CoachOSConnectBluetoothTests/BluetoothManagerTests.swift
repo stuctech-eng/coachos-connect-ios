@@ -49,9 +49,16 @@ final class BluetoothManagerTests: XCTestCase {
         let mock = MockBluetoothManager()
         let deviceId = UUID()
 
-        XCTAssertEqual(await mock.connectionState(for: deviceId), .disconnected)
+        // `await` mag niet direct in een XCTAssert-autoclosure staan (die is
+        // niet async) — daarom eerst in een lokale let vastleggen, dan pas
+        // asserten. Zie changelog voor de aanleiding van deze fix.
+        let stateBeforeConnect = await mock.connectionState(for: deviceId)
+        XCTAssertEqual(stateBeforeConnect, .disconnected)
+
         try await mock.connect(to: deviceId)
-        XCTAssertEqual(await mock.connectionState(for: deviceId), .connected)
+
+        let stateAfterConnect = await mock.connectionState(for: deviceId)
+        XCTAssertEqual(stateAfterConnect, .connected)
         XCTAssertEqual(mock.connectCallCount, 1)
     }
 
