@@ -75,6 +75,6 @@ struct RootView: View {
     RootView(container: AppAssembly.assemble(
         baseURL: URL(string: "https://coach-os-tau.vercel.app")!,
         supabaseProjectURL: URL(string: "https://fabtmkrzqrrwbvgaugjm.supabase.co")!,
-        supabaseAnonKey: "VUL_HIER_DE_ECHTE_PUBLISHABLE_KEY_IN"
+        supabaseAnonKey: "sb_publishable_MqDHZQ_z6L40KPTktPtTMQ_ltC-jvTQ"
     ))
 }
