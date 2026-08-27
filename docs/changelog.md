@@ -29,3 +29,29 @@ wijzigen wanneer dat gebeurt.
 - Niet gecompileerd/getest tegen echte CoreBluetooth-runtime (vereist Xcode/simulator of fysiek toestel — niet beschikbaar in deze ontwikkelomgeving).
 - `discoverServicesAndCharacteristics` filtert services via CoreBluetooth zelf (`discoverServices(_:)`), maar past het `serviceUUIDs`-filter niet ook toe op de characteristic-discovery-fase — voor Sprint 4 relevant om te verifiëren met een echt apparaat.
 - Sprint 4: device discovery UI bovenop deze laag, nog steeds geen PM5-kennis.
+
+---
+
+## CI-fix — macOS-platform-ondergrens
+
+Eerste run van `.github/workflows/ios-ci.yml` faalde: `Package.swift`
+declareerde alleen `.iOS(.v16)`, geen `.macOS`. Omdat de CI de Swift Package
+op de macOS-runner bouwt (geen simulator), viel SwiftPM terug op een oude
+standaard macOS-ondergrens van vóór Swift Concurrency. Gevolg:
+availability-errors op `AsyncStream`, `CheckedContinuation` en
+`withCheckedThrowingContinuation` in `CoachOSConnectBluetooth` (die
+allemaal macOS 10.15+ vereisen).
+
+**Gewijzigd**
+- `Package.swift`: `.macOS(.v13)` toegevoegd aan `platforms`. Raakt alleen
+  hoe SPM zich gedraagt wanneer voor macOS gebouwd wordt (uitsluitend in
+  CI) — geen architectuurwijziging, `App/` (de iOS-app) is geen
+  SwiftPM-target en blijft ongemoeid.
+
+**Herkomst van de diagnose**
+GitHub Copilot's "fix workflow failure"-suggestie (per ongeluk getriggerd)
+identificeerde de correcte oorzaak en dezelfde fix, op een aparte branch
+(`copilot/fix-swift-package-build-test`, niet gemerged). De diagnose is
+geverifieerd door de branch-inhoud direct op te halen en te vergelijken —
+functioneel identiek aan deze wijziging. Deze changelog-entry en de
+daadwerkelijke merge lopen via de reguliere patch-route, niet via die PR.

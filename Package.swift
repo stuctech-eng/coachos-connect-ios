@@ -4,7 +4,17 @@ import PackageDescription
 let package = Package(
     name: "CoachOSConnect",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v16),
+        // Toegevoegd voor CI: SwiftPM bouwt deze package op de macOS-runner
+        // (geen simulator nodig). Zonder expliciete macOS-ondergrens valt
+        // SPM terug op een oude standaard-deployment-target van vóór Swift
+        // Concurrency, waardoor AsyncStream/CheckedContinuation/
+        // withCheckedThrowingContinuation (gebruikt in CoachOSConnectBluetooth)
+        // als "niet beschikbaar" worden gezien. macOS 13 (Ventura) sluit aan
+        // bij de iOS 16-ondergrens en ondersteunt alle gebruikte async/await-
+        // API's volledig. Raakt alleen CI-builds voor macOS; de iOS-app zelf
+        // (App/) valt hier niet onder, die is geen SwiftPM-target.
+        .macOS(.v13)
     ],
     products: [
         // Domain: modellen, protocols, use cases. Geen dependencies.
