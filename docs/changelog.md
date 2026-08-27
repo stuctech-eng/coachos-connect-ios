@@ -80,3 +80,33 @@ XCTAssertEqual(await mock.connectionState(for: deviceId), .disconnected)
   lokale `let` vastgelegd, pas daarna geasserteerd. Geen enkele andere test
   of productiecode aangeraakt; dit was de enige plek in de repository met
   dit patroon.
+
+---
+
+## Sprint 4 — Device Discovery / UX
+
+Generiek apparaten-scherm bovenop `BluetoothManagerProtocol` uit Sprint 3.
+Nog steeds geen PM5-kennis: elk ontdekt apparaat wordt getoond zoals de
+Bluetooth-laag het aanlevert (naam, signaalsterkte, verbindbaarheid),
+zonder aan te nemen welk apparaat het is.
+
+**Toegevoegd**
+- Nieuwe module `CoachOSConnectDeviceDiscovery` (afhankelijk van alleen `CoachOSConnectBluetooth`, geen Core-afhankelijkheid).
+- `DiscoveredDeviceList`: pure, synchrone merge-/sorteerlogica — dedupliceert op apparaat-id, sorteert op signaalsterkte. Los van async/Combine, dus zonder mock rechtstreeks testbaar.
+- `DeviceDiscoveryController` (`@MainActor`, `ObservableObject`): scan starten/stoppen, ontdekte apparaten publiceren, verbinden/verbreken, verbindingsstatus per apparaat volgen (zowel het directe resultaat van een expliciete `connect`-aanroep als latere, onverwachte statuswijzigingen via de stream).
+- `App/DevicesView.swift`: dunne SwiftUI-lijst bovenop de controller — scanknop, apparatenlijst met signaalsterkte en verbind-/verbreekstatus.
+- `App/RootView.swift`: navigatielink naar het apparaten-scherm toegevoegd.
+- Tests (`CoachOSConnectDeviceDiscoveryTests`): merge-/sorteerlogica, en controller-gedrag via de bestaande `MockBluetoothManager` uit Sprint 3 (scan-delegatie, discovery-publicatie, connect/foutafhandeling, stop-scan) — geen hardware nodig.
+
+**Bewust niet toegevoegd**
+- Herkenning van apparaattype (PM5 of anders) — blijft Sprint 5.
+- Koppeling met `DeviceRepositoryProtocol`/`DeviceDescriptor` uit Core: een ontdekt BLE-apparaat is nog geen "gekoppeld apparaat" in de zin van de Device Layer — dat vraagt een adapter die weet hoe een generiek `BluetoothDevice` zich verhoudt tot een `DeviceDescriptor` met echte capabilities. Die koppeling hoort thuis bij Sprint 5, niet hier geforceerd.
+- Multi-device tegelijk verbonden UX-afweging (bv. wat als je met twee apparaten tegelijk verbindt) — niet expliciet getest, wel technisch mogelijk door het per-`deviceId`-ontwerp van de controller.
+
+**Let op — dekking door CI**
+`App/` (inclusief `DevicesView.swift`, `RootView.swift`) is bewust geen
+SwiftPM-target (zie eerdere sprints) en wordt dus niet door
+`swift build`/`swift test` gedekt. Alle niet-triviale logica
+(`DiscoveredDeviceList`, `DeviceDiscoveryController`) zit daarom in de wél
+geteste module `CoachOSConnectDeviceDiscovery`; de SwiftUI-views zelf
+blijven bewust dun en declaratief.

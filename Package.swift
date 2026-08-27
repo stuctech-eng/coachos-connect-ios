@@ -9,11 +9,11 @@ let package = Package(
         // (geen simulator nodig). Zonder expliciete macOS-ondergrens valt
         // SPM terug op een oude standaard-deployment-target van vóór Swift
         // Concurrency, waardoor AsyncStream/CheckedContinuation/
-        // withCheckedThrowingContinuation (gebruikt in CoachOSConnectBluetooth)
-        // als "niet beschikbaar" worden gezien. macOS 13 (Ventura) sluit aan
-        // bij de iOS 16-ondergrens en ondersteunt alle gebruikte async/await-
-        // API's volledig. Raakt alleen CI-builds voor macOS; de iOS-app zelf
-        // (App/) valt hier niet onder, die is geen SwiftPM-target.
+        // withCheckedThrowingContinuation als "niet beschikbaar" worden
+        // gezien. macOS 13 (Ventura) sluit aan bij de iOS 16-ondergrens en
+        // ondersteunt alle gebruikte async/await-API's volledig. Raakt
+        // alleen CI-builds voor macOS; de iOS-app zelf (App/) valt hier
+        // niet onder, die is geen SwiftPM-target.
         .macOS(.v13)
     ],
     products: [
@@ -22,6 +22,10 @@ let package = Package(
 
         // Generieke BLE-laag: CoreBluetooth. Kent geen fabrikanten/protocollen.
         .library(name: "CoachOSConnectBluetooth", targets: ["CoachOSConnectBluetooth"]),
+
+        // Device discovery/UX-presentatielaag bovenop de Bluetooth-laag.
+        // Kent, net als die laag, geen fabrikanten.
+        .library(name: "CoachOSConnectDeviceDiscovery", targets: ["CoachOSConnectDeviceDiscovery"]),
 
         // Device Layer: universele adapter-architectuur. Geen hardware-implementaties.
         .library(name: "CoachOSConnectDeviceLayer", targets: ["CoachOSConnectDeviceLayer"]),
@@ -45,6 +49,10 @@ let package = Package(
             dependencies: []
         ),
         .target(
+            name: "CoachOSConnectDeviceDiscovery",
+            dependencies: ["CoachOSConnectBluetooth"]
+        ),
+        .target(
             name: "CoachOSConnectDeviceLayer",
             dependencies: ["CoachOSConnectCore"]
         ),
@@ -57,6 +65,7 @@ let package = Package(
             dependencies: [
                 "CoachOSConnectCore",
                 "CoachOSConnectBluetooth",
+                "CoachOSConnectDeviceDiscovery",
                 "CoachOSConnectDeviceLayer",
                 "CoachOSConnectData"
             ]
@@ -68,6 +77,10 @@ let package = Package(
         .testTarget(
             name: "CoachOSConnectBluetoothTests",
             dependencies: ["CoachOSConnectBluetooth"]
+        ),
+        .testTarget(
+            name: "CoachOSConnectDeviceDiscoveryTests",
+            dependencies: ["CoachOSConnectDeviceDiscovery", "CoachOSConnectBluetooth"]
         )
     ]
 )

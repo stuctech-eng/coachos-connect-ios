@@ -1,11 +1,12 @@
 import SwiftUI
 import CoachOSConnectCore
+import CoachOSConnectBluetooth
 import CoachOSConnectDI
 
-/// Minimale root view voor Sprint 1. Doel is uitsluitend aantonen dat de
-/// dependency graph (DI → repositories → use cases) daadwerkelijk werkt.
-/// Geen live-scherm, geen device-lijst, geen workout-player — die horen bij
-/// latere sprints (Fase 2 Live Coaching e.v.).
+/// Minimale root view. Toont dat de dependency graph (DI → repositories →
+/// use cases) werkt, en biedt vanaf Sprint 4 toegang tot het generieke
+/// apparaten-scherm. Nog geen live-workoutscherm of player — die horen bij
+/// latere sprints.
 struct RootView: View {
     let container: DIContainer
 
@@ -44,6 +45,11 @@ struct RootView: View {
                     Task { await loadTodaysWorkout() }
                 }
                 .buttonStyle(.borderedProminent)
+
+                NavigationLink("Apparaten") {
+                    DevicesView(bluetooth: container.resolve(BluetoothManagerProtocol.self))
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
             .navigationTitle("CoachOS Connect")
