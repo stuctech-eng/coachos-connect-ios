@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "CoachOSConnect",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v16),
+        .macOS(.v13)
     ],
     products: [
         // Domain: modellen, protocols, use cases. Geen dependencies.
