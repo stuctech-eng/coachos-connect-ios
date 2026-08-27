@@ -32,7 +32,8 @@ struct CoachOSConnectApp: App {
         // Settings → API → Publishable key) en vul 'm hieronder in vóór
         // het bouwen — anders faalt elke aanmeldpoging met een
         // duidelijke serverfout, geen stille verkeerde aanname.
-        let supabaseAnonKey = let supabaseAnonKey = "sb_publishable_MqDHZQ_z6L40KPTktPtTMQ_ltC-jvTQ"
+        let supabaseAnonKey = "sb_publishable_MqDHZQ_z6L40KPTktPtTMQ_ltC-jvTQ"
+
 
 
         self.container = AppAssembly.assemble(
