@@ -1,0 +1,69 @@
+name: CoachOS Connect CI
+
+# Bouwt en test uitsluitend de Swift Package (CoachOSConnectCore,
+# CoachOSConnectBluetooth, CoachOSConnectDeviceLayer, CoachOSConnectData,
+# CoachOSConnectDI) op een macOS-runner met een echte Apple Swift/Xcode-
+# toolchain.
+#
+# Bewust NIET in scope (zie projectcontext):
+# - Apple Developer-account, code signing, provisioning profiles
+# - .ipa-archief, App Store, TestFlight
+# - PM5, CSAFE, echte Bluetooth-hardware, CoreBluetooth-hardwaretest
+# - de App/-map (SwiftUI-shell): die is bewust geen SwiftPM-target (zie
+#   README, sectie "Xcode opzetten") en wordt daarom hier niet gebouwd.
+#
+# Runnerkeuze: macos-15 (Sequoia). macos-14 (Sonoma) is per medio 2026 in
+# deprecatie bij GitHub Actions; macos-15 is de huidige stabiele keuze.
+# swift-tools-version in Package.swift is 5.9 — een minimum, geen exacte
+# pin. We forceren daarom bewust geen specifieke Xcode-puntversie (die kan
+# van de runner-image verdwijnen), maar loggen wél expliciet welke versie
+# daadwerkelijk gebruikt wordt, zodat dat nooit stilzwijgend verandert.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Swift Package build + test
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain inspecteren
+        run: |
+          echo "### Beschikbare Xcode-installaties" >> "$GITHUB_STEP_SUMMARY"
+          ls /Applications | grep -i Xcode || echo "geen Xcode*.app gevonden"
+          echo "" 
+          echo "### Actieve Xcode" | tee -a "$GITHUB_STEP_SUMMARY"
+          xcodebuild -version | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "" 
+          echo "### Swift-versie" | tee -a "$GITHUB_STEP_SUMMARY"
+          swift --version | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "" 
+          echo "### macOS-versie van de runner" | tee -a "$GITHUB_STEP_SUMMARY"
+          sw_vers | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Package.swift valideren
+        run: swift package dump-package > /dev/null
+
+      - name: Package-structuur tonen (alle targets/producten)
+        run: swift package describe
+
+      - name: Swift Package bouwen (alle targets)
+        run: swift build -v
+
+      - name: CoachOSConnectBluetooth expliciet bouwen
+        run: swift build --target CoachOSConnectBluetooth -v
+
+      - name: Unit tests uitvoeren (alle testtargets)
+        run: swift test -v
+
+      - name: Bluetooth-tests expliciet uitvoeren
+        run: swift test --filter CoachOSConnectBluetoothTests -v
