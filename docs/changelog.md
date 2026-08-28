@@ -498,3 +498,45 @@ voorspeld.
 - `executionType`/CoachOS' `WorkoutType` als directe bron voor
   `SET_WORKOUTTYPE` — deze fix leidt het workouttype af uit de
   stapstructuur zelf (tijd/afstand), niet uit CoachOS' `executionType`-veld.
+
+---
+
+## Sprint 7a/7b — PM5 Rowing Service: discovery, subscriptie, General Status-decoder
+
+Eerste stap richting de eerste fysieke PM5-test. Uitsluitend `0x0031`
+(General Status) — bewust géén `0x0032`/`0x0033` (Sprint 7c), vanwege de
+in het Sprint 7-onderzoeksrapport gedocumenteerde tegenstrijdigheid
+tussen twee tabellen in de officiële spec voor die twee characteristics.
+
+**Toegevoegd**
+- `PM5BLEConstants`: characteristic-UUID's voor `0x0031`/`0x0032`/
+  `0x0033`/`0x0034`, met expliciete waarschuwing bij `0x0032`/`0x0033`
+  over de bronvermelde discrepantie.
+- `PM5SampleRate`: bevestigde waarden voor `0x0034`.
+- `PM5RowingStatusMonitor` (Sprint 7a): ontdekt de Rowing Service,
+  abonneert op `0x0031` (vóór het schrijven naar `0x0034` — zelfde
+  abonneer-vóór-actie-discipline als Sprint 4/5b), logt elke ontvangen
+  notification (bytelengte + hex-dump), geeft de ruwe bytes door.
+  Schrijffout naar `0x0034` is best-effort — geen reden om de
+  subscriptie te laten falen.
+- `PM5GeneralStatus` + `PM5WorkoutState`/`PM5RowingState`/
+  `PM5StrokeState` (Sprint 7b): gedecodeerd datamodel + de drie
+  bevestigde enums uit de officiële spec.
+- `PM5GeneralStatusDecoder`: decodeert de 19 bytes, little-endian (een
+  bewust ANDERE byte-volgorde dan de MSB-eerste CSAFE-proprietary-
+  commando's op de Control Service — twee services, twee apart
+  bevestigde conventies). Gooit expliciet bij een afwijkende bytelengte,
+  geen gedeeltelijke decodering.
+- Tests: decoder tegen een handmatig opgebouwde, met Python
+  onafhankelijk nagerekende testvector (nog geen echte hardware-capture
+  — dat is de volgende stap); monitor via `MockBluetoothManager`.
+
+**Bewust nog niet aangeraakt**
+- `0x0032`/`0x0033` (Additional Status 1/2) — Sprint 7c, wacht op
+  empirische bevestiging van de daadwerkelijke bytelengte tijdens de
+  eerste hardwaretest (zie het onderzoeksrapport).
+- Koppeling aan `PM5Adapter.metricsStream()` — Sprint 8. Deze module is
+  bewust standalone, uitsluitend voor de validatiefase.
+- Velden waarvan de eenheid niet expliciet bevestigd is
+  (`totalWorkDistanceRaw`, `workoutDurationRaw`) blijven bewust rauw,
+  geen gegokte schaling.

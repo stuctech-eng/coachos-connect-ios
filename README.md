@@ -6,34 +6,34 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: PM5WorkoutProgrammer — continue workouts ondersteund
+## Status: Sprint 7a/7b — PM5 Rowing Service discovery + General Status-decoder
 
-Beide bekende gaten na Sprint 6b-3 zijn nu gedicht (Optie B UI, en dit).
-Een workout zonder herhaling/rust (bijv. "20 minuten rustig roeien")
-wordt nu correct geprogrammeerd — geen `SET_WORKOUTINTERVALCOUNT`/
-`SET_INTERVALTYPE`, bevestigd via kruisvalidatie met de gedeprecieerde
-CoachOS-TypeScript-adapter.
+Eerste stap richting de eerste fysieke PM5-test. Alleen `0x0031`
+(General Status): discovery, subscriptie, ruwe-bytes-logging, en een
+pure decoder. `0x0032`/`0x0033` bewust nog niet — zie het
+Sprint 7-onderzoeksrapport voor de reden (tegenstrijdigheid in de
+officiële spec, eerst empirisch te bevestigen).
 
 ### Wat is er gebouwd (cumulatief, actuele stand)
 
-**Sprint 1 t/m Optie B** — fundament, Bluetooth-laag, device discovery,
-PM5/CSAFE, backend-auth, native auth, workout ophalen + mapping,
-resultaat-upload, workout-weergave-UI (beide richtingen van de
-CoachOS-Connect-keten staan, plus de UI erbovenop).
+**Sprint 1 t/m continue-hoofdblok-fix** — volledige softwareketen, beide
+richtingen (CoachOS ↔ Connect ↔ PM5-programmering), CI groen.
 
-**PM5WorkoutProgrammer — continue workouts (nieuw)**
-- Precies 1 overgebleven werkstap (na warmup/cooldown) → continue
-  workout: `SET_WORKOUTTYPE` + `SET_WORKOUTDURATION` + targets +
-  `CONFIGURE_WORKOUT(true)`, geen interval-commando's
-- Tijd- én afstandgebaseerde duur ondersteund voor dit geval
+**Sprint 7a/7b — Rowing Service discovery + General Status (nieuw)**
+- `PM5RowingStatusMonitor`: Rowing Service discovery, `0x0031`-
+  subscriptie, ruwe-bytes-logging — standalone, nog niet aan
+  `PM5Adapter` gekoppeld
+- `PM5GeneralStatusDecoder` + `PM5GeneralStatus`: pure, geteste decoder
+  voor de 19-byte General Status-characteristic
 
 ### Wat hier bewust nog niet in zit
-- Koppeling met `PM5Adapter.startWorkout()`/`stopWorkout()` vanuit de UI
-- Afstandgebaseerde *intervallen* (binnen een werk/rust-paar) — apart gat
-- `.openEnded`/"just row"-workouts
-- Live metrics (Sprint 8), Workout Player met hardware-koppeling (Sprint 9)
-- De eerste fysieke PM5-hardwaretest — alles hierboven is softwarematig
-  bewezen (CI groen), niet fysiek gevalideerd
+- `0x0032`/`0x0033` (Additional Status 1/2) — Sprint 7c, na empirische
+  bevestiging van de daadwerkelijke bytelengte
+- Koppeling aan `PM5Adapter.metricsStream()` — Sprint 8
+- **De eerste fysieke PM5-hardwaretest zelf** — alles hierboven is
+  softwarematig bewezen (CI groen, decoder tegen een handmatig
+  opgebouwde testvector), niet fysiek gevalideerd. Dat is precies waar
+  dit voor gebouwd is: de kleinst mogelijke, zinvolle eerste stap.
 
 ## Projectstructuur
 

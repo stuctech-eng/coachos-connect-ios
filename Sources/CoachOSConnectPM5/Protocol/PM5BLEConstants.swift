@@ -38,7 +38,27 @@ public enum PM5BLEConstants {
     /// geïmplementeerd.
     public static let controlTransmitCharacteristicUUID = uuid("0022")
 
-    /// C2 PM Rowing Service — live metrics-broadcast (niet gebruikt in
-    /// Sprint 5a; relevant voor een latere live-metrics-sprint).
+    /// C2 PM Rowing Service — live metrics-broadcast.
     public static let rowingServiceUUID = uuid("0030")
+
+    /// C2 Rowing General Status — elapsed time, distance, workout/interval/
+    /// rowing/stroke-state, drag factor. 19 bytes bevestigd (Table 3,
+    /// officiële spec) — zie `PM5GeneralStatusDecoder`.
+    public static let rowingGeneralStatusCharacteristicUUID = uuid("0031")
+
+    /// C2 Rowing Additional Status 1 — speed, stroke rate, heartrate, pace.
+    /// LET OP: de officiële spec vermeldt hiervoor twee verschillende
+    /// bytelengtes in twee verschillende tabellen (17 vs. 19 bytes) — zie
+    /// het Sprint 7-onderzoeksrapport. Nog geen decoder hiervoor (Sprint 7c).
+    public static let rowingAdditionalStatus1CharacteristicUUID = uuid("0032")
+
+    /// C2 Rowing Additional Status 2 — average power, interval count,
+    /// calories. Zelfde discrepantie-waarschuwing als hierboven (20 vs.
+    /// 18 bytes in de twee tabellen). Nog geen decoder hiervoor (Sprint 7c).
+    public static let rowingAdditionalStatus2CharacteristicUUID = uuid("0033")
+
+    /// C2 Rowing General Status/Additional Status sample-rate (WRITE, 1
+    /// byte): 0=1s, 1=500ms (PM5-standaard indien niet gezet), 2=250ms,
+    /// 3=100ms.
+    public static let rowingSampleRateCharacteristicUUID = uuid("0034")
 }
