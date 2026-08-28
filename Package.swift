@@ -33,6 +33,11 @@ let package = Package(
         // Device Layer: universele adapter-architectuur. Geen hardware-implementaties.
         .library(name: "CoachOSConnectDeviceLayer", targets: ["CoachOSConnectDeviceLayer"]),
 
+        // Workout-weergave tijdens een sessie (Optie B): puur tijd-
+        // gebaseerde stap-/countdown-logica. Geen PM5-kennis, geen
+        // hardware-telemetrie.
+        .library(name: "CoachOSConnectWorkoutPlayback", targets: ["CoachOSConnectWorkoutPlayback"]),
+
         // Data: repository-implementaties, API client, lokale opslag.
         .library(name: "CoachOSConnectData", targets: ["CoachOSConnectData"]),
 
@@ -61,6 +66,10 @@ let package = Package(
         ),
         .target(
             name: "CoachOSConnectDeviceLayer",
+            dependencies: ["CoachOSConnectCore"]
+        ),
+        .target(
+            name: "CoachOSConnectWorkoutPlayback",
             dependencies: ["CoachOSConnectCore"]
         ),
         .target(
@@ -96,6 +105,10 @@ let package = Package(
         .testTarget(
             name: "CoachOSConnectDataTests",
             dependencies: ["CoachOSConnectData", "CoachOSConnectCore"]
+        ),
+        .testTarget(
+            name: "CoachOSConnectWorkoutPlaybackTests",
+            dependencies: ["CoachOSConnectWorkoutPlayback", "CoachOSConnectCore"]
         )
     ]
 )

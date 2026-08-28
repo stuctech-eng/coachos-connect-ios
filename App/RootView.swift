@@ -31,6 +31,10 @@ struct RootView: View {
                     ProgressView()
                 } else if let workout = todaysWorkout {
                     Text("Vandaag: \(workout.title)")
+                    NavigationLink("Start training") {
+                        WorkoutPlaybackView(workout: workout)
+                    }
+                    .buttonStyle(.borderedProminent)
                 } else if let errorMessage {
                     Text(errorMessage)
                         .font(.footnote)

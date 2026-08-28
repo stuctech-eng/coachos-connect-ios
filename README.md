@@ -6,36 +6,31 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 6b-3 — Resultaat-upload (Connect-kant)
+## Status: Optie B — UI voor SPM/coaching-instructies
 
-Sluit de terugweg: `PM5 → Connect → lokale wachtrij → CoachOS →
-activity_sessions`. Beide richtingen van de keten staan nu: heen
-(Sprint 6b-2) en terug (deze sprint).
+Eerste van twee bekende gaten na Sprint 6b-3 gedicht. De workout-keten is
+nu daadwerkelijk bruikbaar: stap, resterende tijd, en de door CoachOS
+aangeleverde instructie zijn zichtbaar tijdens een training.
 
-**Architectuurbeslissing:** Swift Connect (`CoachOSConnectPM5`) is de
-enige runtime PM5/CSAFE-implementatie. Een tweede, onafhankelijk op
-CoachOS aangetroffen TypeScript-implementatie is gedeprecieerd
-(niet verwijderd — bewaard als validatiemateriaal, zie changelog).
+### Wat is er gebouwd (cumulatief t/m Optie B)
 
-### Wat is er gebouwd (cumulatief t/m Sprint 6b-3)
+**Sprint 1 t/m 6b-3** — fundament, Bluetooth-laag, device discovery,
+PM5/CSAFE, backend-auth, native auth, workout ophalen + mapping,
+resultaat-upload (beide richtingen van de keten staan).
 
-**Sprint 1 t/m 6b-2** — fundament, Bluetooth-laag, device discovery,
-PM5/CSAFE, backend-auth, native auth, workout ophalen + mapping.
-
-**Sprint 6b-3 — Resultaat-upload (nieuw)**
-- `ConnectWorkoutResultPayload`: exacte spiegel van het bevestigde
-  backend-schema
-- `ConnectWorkoutResultBuilder`: pure, testbare payload/`SyncItem`-builder
-- `CoachOSEndpoints.workoutResult(body:)`, `LocalSyncRepository`
-  herschreven om er daadwerkelijk naartoe te versturen
-- `SyncItem.payload: Data` (Core) — het ontbrekende stuk om de wachtrij
-  ooit iets zinnigs te kunnen versturen
+**Optie B — Workout-weergave (nieuw)**
+- Module `CoachOSConnectWorkoutPlayback`: `WorkoutPlaybackController`
+  (tijd-gebaseerde stap-/countdown-logica, injecteerbare klok),
+  `WorkoutStepKind.displayLabel`
+- `App/WorkoutPlaybackView.swift`, bereikbaar vanuit `RootView` na het
+  ophalen van de dagworkout
 
 ### Wat hier bewust nog niet in zit
-- Koppeling aan een echte trainingssessie — wacht op Sprint 9 (Workout Player)
-- Echte `totals`/`intervals`-waarden — wacht op Sprint 8 (live metrics)
-- `liveMetricsSession`-sync — geen bevestigd endpoint
-- Continue (niet-interval) hoofdblokken zonder rust — bekend gat sinds 6b-2
+- Koppeling met `PM5Adapter.startWorkout()`/`stopWorkout()` — dit scherm
+  toont voortgang, triggert niets op de hardware
+- Continue (niet-interval) hoofdblokken zonder rust — nog steeds het
+  bekende gat, volgende stap na deze
+- Live metrics (Sprint 8), Workout Player met hardware-koppeling (Sprint 9)
 
 ## Projectstructuur
 
@@ -68,7 +63,7 @@ handmatig opbouwen is foutgevoelig. In plaats daarvan:
 
 1. Nieuw Xcode-project → App → SwiftUI, taal Swift, naam bijv. `CoachOSConnect`.
 2. File → Add Package Dependencies → Add Local... → wijs naar de root van deze repo (waar `Package.swift` staat).
-3. Voeg alle zeven de library-targets toe aan het App-target.
+3. Voeg alle acht de library-targets toe aan het App-target.
 4. Vervang de gegenereerde `ContentView.swift`/`App.swift` door de bestanden uit `App/` in deze repo.
 5. Neem de sleutels uit `App/Info-template.plist` over in het Info.plist van het App-target — vanaf nu relevant, want `CoachOSConnectBluetooth` gebruikt CoreBluetooth.
 6. Build & run.
