@@ -6,42 +6,36 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 6b-1 — Native Supabase-authenticatie
+## Status: Sprint 6b-2 — CoachOS-workout ophalen + mapping
 
-Ketenoverzicht: `iPhone → Supabase Auth (rechtstreeks) → JWT/Keychain →
-CoachOS API (Bearer-header, sinds Sprint 6a) → workout/resultaat`.
+Ketenoverzicht (nu écht werkend, niet meer verzonnen): `CoachOS Today
+Engine → sessieId → .../training-plan/workout → CoachOS UniversalWorkout →
+CoachOSWorkoutMapper → Connect UniversalWorkout → PM5WorkoutProgrammer →
+PM5`.
 
-Deze sprint levert uitsluitend authenticatie. Workout-ophalen/-mapping
-(CoachOS' eigen `UniversalWorkout` → Connect's `UniversalWorkout`) en
-resultaat-upload volgen in 6b-2/6b-3.
+### Wat is er gebouwd (cumulatief t/m Sprint 6b-2)
 
-### Wat is er gebouwd (cumulatief t/m Sprint 6b-1)
+**Sprint 1 t/m 6a** — fundament, Bluetooth-laag, device discovery,
+PM5/CSAFE-encoding + adapter, backend-auth (`coachOS`-repo).
 
-**Sprint 1 t/m 5b** — zie eerdere secties hieronder/changelog: fundament,
-generieke Bluetooth-laag, device discovery, PM5/CSAFE-encoding + adapter.
+**Sprint 6b-1 — Native Supabase-authenticatie**
+- `SupabaseAuthClient`, `KeychainTokenStore`, herschreven `RemoteAuthRepository`
 
-**Sprint 6a (backend, `coachOS`-repo, apart van deze repository)**
-- Gedeelde `getAuthenticatedUser()`-helper: Bearer-token eerst, dan
-  cookie — geen tweede auth-systeem
-- `coachos_connect` toegevoegd aan de Source Priority Policy
-  (prioriteit 110, boven `concept2`s 100)
-
-**Sprint 6b-1 — Native Supabase-authenticatie (nieuw, deze repository)**
-- `SupabaseAuthClient`: rechtstreeks tegen Supabase's Auth-REST-API,
-  geen SDK-dependency
-- `KeychainTokenStore`: sessieopslag via de iOS Keychain
-- `RemoteAuthRepository` herschreven: geen nep-CoachOS-auth-endpoint
-  meer
-- Eerste tests voor de Data-laag (`CoachOSConnectDataTests`)
+**Sprint 6b-2 — Workout ophalen + mapping (nieuw)**
+- `CoachOSWorkoutMapper`: CoachOS' eigen `UniversalWorkout` → Connect's
+  `UniversalWorkout`, inclusief expliciete Optie B-targetlogica (zone-
+  doelen worden nooit als hardware-target verstuurd)
+- `CoachOSEndpoints.today()`/`rowingWorkout(sessieId:)`: de echte paden
+- `RemoteWorkoutRepository` herschreven: volledige today→workout-keten
+- `PM5WorkoutProgrammer`-correctie: warmup/cooldown worden nu correct
+  overgeslagen i.p.v. de hele workout te weigeren
 
 ### Wat hier bewust nog niet in zit
-- CoachOS-workout ophalen/mappen naar Connect's `UniversalWorkout` —
-  `CoachOSEndpoints` wijst voor workouts/sync nog naar de oude, onjuiste
-  `/api/v1/connect/...`-paden (Sprint 6b-2)
-- Resultaat-upload naar `activity_sessions` (Sprint 6b-3)
-- SPM als informatieve instructie (Optie B) — UI-werk, later
-- Google-OAuth vanuit Connect (alleen e-mail/wachtwoord nu)
-- Live metrics (Sprint 8), workoutresultaat via GET-commando's (Sprint 7)
+- Resultaat-upload (`markCompleted`/`syncItem`) — Sprint 6b-3
+- Continue (niet-interval) hoofdblokken zonder rust — bekend, niet
+  opgelost gat, zie changelog
+- `executionType` → PM5 `WorkoutType`-vertaling
+- Live metrics (Sprint 8), Google-OAuth in Connect
 
 ## Projectstructuur
 

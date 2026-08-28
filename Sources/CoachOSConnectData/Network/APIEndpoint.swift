@@ -29,41 +29,44 @@ public enum APIClientError: Error, Sendable {
 
 /// Bekende endpoints richting de CoachOS-backend.
 ///
-/// BELANGRIJKE CORRECTIE (contract-review, 28 augustus 2026): de
-/// `/api/v1/connect/...`-namespace hieronder is NOOIT een echt CoachOS-
-/// contract geweest — zelf verzonnen in Sprint 1, vóór er een backend was
-/// om tegen te toetsen. De daadwerkelijke CoachOS-routes zijn anders
-/// (`/api/today`, `/api/specialists/rowing/training-plan/workout?sessieId=...`,
-/// géén auth-endpoints — authenticatie loopt via Supabase Auth
-/// rechtstreeks, zie `SupabaseAuthClient`).
+/// Sprint 6b-2: `todaysWorkout()`/`workout(sessieId:)` gecorrigeerd naar
+/// de echte, bevestigde CoachOS-paden (contract-review, 28 augustus
+/// 2026). De oude `/api/v1/connect/...`-namespace is nooit een echt
+/// contract geweest — zelf verzonnen in Sprint 1, vóór er een backend
+/// was om tegen te toetsen.
 ///
-/// Sprint 6b-1 (deze patch) corrigeert alleen de auth-kant:
-/// `signIn()`/`refreshSession()` zijn verwijderd (niemand roept ze meer
-/// aan — `RemoteAuthRepository` gebruikt nu `SupabaseAuthClient`).
-///
-/// `todaysWorkout()`/`workout(id:)`/`markCompleted`/`syncItem` staan
-/// hieronder BEWUST nog ongewijzigd (nog steeds de oude, onjuiste
-/// `/api/v1/connect/...`-paden) — het herzien hiervan naar de echte
-/// paden vraagt ook de CoachOS-UniversalWorkout-mapping-laag (Sprint
-/// 6b-2), niet alleen een padwijziging. Half aanpassen zonder die laag
-/// zou een compilerende maar functioneel kapotte staat opleveren; dat is
-/// bewust niet gedaan.
+/// `markCompleted`/`syncItem` (resultaat-upload naar `activity_sessions`)
+/// staan hieronder BEWUST nog als placeholder — dat is Sprint 6b-3, wacht
+/// op het CoachOS-backendwerk uit de contract-review (nieuwe
+/// `coachos_connect`-source, al gedaan in Sprint 6a) plus een concreet
+/// upload-endpoint-ontwerp dat nog niet vastligt.
 public enum CoachOSEndpoints {
-    private static let basePath = "/api/v1/connect"
 
-    public static func todaysWorkout() -> APIEndpoint {
-        APIEndpoint(path: "\(basePath)/workouts/today", method: .get)
+    /// `GET /api/today` — geeft `{ plan: TodayPlan }` terug. Bevat
+    /// `source`/`sessieId`; alleen bij `source == "rowing"` en een
+    /// niet-`nil` `sessieId` is er een PM5-workout voor vandaag.
+    public static func today() -> APIEndpoint {
+        APIEndpoint(path: "/api/today", method: .get)
     }
 
-    public static func workout(id: String) -> APIEndpoint {
-        APIEndpoint(path: "\(basePath)/workouts/\(id)", method: .get)
+    /// `GET /api/specialists/rowing/training-plan/workout?sessieId=...`
+    /// — geeft ofwel `{ workout, ... }` (reguliere trainingsdag) ofwel
+    /// `{ rest: true, reasons: [...] }` (rustdag-beslissing) terug. Zie
+    /// `CoachOSWorkoutRouteResponseDTO`.
+    public static func rowingWorkout(sessieId: String) -> APIEndpoint {
+        var components = URLComponents()
+        components.path = "/api/specialists/rowing/training-plan/workout"
+        components.queryItems = [URLQueryItem(name: "sessieId", value: sessieId)]
+        return APIEndpoint(path: components.string ?? "/api/specialists/rowing/training-plan/workout", method: .get)
     }
+
+    // MARK: - Sprint 6b-3 (nog niet geïmplementeerd)
 
     public static func markCompleted(id: String, body: Data) -> APIEndpoint {
-        APIEndpoint(path: "\(basePath)/workouts/\(id)/complete", method: .post, body: body)
+        APIEndpoint(path: "/api/v1/connect/workouts/\(id)/complete", method: .post, body: body)
     }
 
     public static func syncItem(body: Data) -> APIEndpoint {
-        APIEndpoint(path: "\(basePath)/sync", method: .post, body: body)
+        APIEndpoint(path: "/api/v1/connect/sync", method: .post, body: body)
     }
 }

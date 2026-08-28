@@ -315,3 +315,67 @@ discipline als Sprint 5a/5b).
   ook alleen een placeholder), moet uit het Supabase-dashboard gehaald
   worden. De project-URL is wél echt (bevestigd publiek adres uit
   `.env.example`).
+
+---
+
+## Sprint 6b-2 — CoachOS-workout ophalen + mapping naar Connect's UniversalWorkout
+
+Verbindt de auth-laag uit 6b-1 met de daadwerkelijke workout-keten:
+`GET /api/today` → `sessieId` → `GET .../training-plan/workout` →
+`CoachOSWorkoutMapper` → Connect's `UniversalWorkout`.
+
+**Toegevoegd**
+- `CoachOSTodayPlanDTO`/`CoachOSTodayResponseDTO`, `CoachOSWorkoutTargetDTO`/
+  `CoachOSWorkoutBlockDTO`/`CoachOSUniversalWorkoutDTO`/
+  `CoachOSWorkoutRouteResponseDTO`: exacte spiegels van CoachOS' eigen
+  JSON, geverifieerd tegen `workout-builder/types.ts` en de daadwerkelijke
+  route-responses (inclusief het rustdag-geval `{rest:true,reasons:[...]}`).
+- `CoachOSWorkoutMapper`: vertaalt bloktype, herhaling (`repeat`+
+  `rust_na_repeat_sec` → `RepeatGroup`), en targets (Optie B: alleen
+  `power`/`pace` met een waarde worden gemapt; `zone` en overige typen
+  bewust niet — landen als `instruction`-tekst, niet als hardware-target).
+- `WorkoutStep.instruction: String?` (Core): nieuw, optioneel veld voor
+  puur informatieve UI-tekst (bijv. een SPM-instructie) — nooit gebruikt
+  voor CSAFE-encoding.
+- `CoachOSEndpoints.today()`/`rowingWorkout(sessieId:)`: de echte,
+  bevestigde paden, vervangen de nooit-bestaande `/api/v1/connect/...`.
+- `RemoteWorkoutRepository` herschreven: implementeert de volledige
+  today→sessieId→workout-keten; rustdag-respons wordt correct als "geen
+  workout" (`nil`), niet als fout, behandeld.
+- Tests (`CoachOSWorkoutMapperTests`): realistisch fixture-JSON (zie
+  bronvermelding in het testbestand — handmatig opgebouwd naar het
+  geverifieerde schema, geen live-capture), plus een end-to-end-test die
+  bevestigt dat een gemapte workout ook daadwerkelijk voldoet aan
+  `PM5WorkoutProgrammer`'s eisen.
+
+**Twee reële gaten zelf gevonden tijdens het bouwen, gefixt of expliciet benoemd**
+1. **Gefixt:** `PM5WorkoutProgrammer` verwachtte een strikte werk/rust-
+   reeks vanaf stap 0 — elke echte CoachOS-workout heeft een losse
+   `warmup[]`/`cooldown[]`, dus zonder fix zou geen enkele echte workout
+   ooit geprogrammeerd hebben kunnen worden. Opgelost: leidende warmup en
+   afsluitende cooldown worden nu overgeslagen (niet als CSAFE-interval
+   verstuurd), blijven wel onderdeel van `UniversalWorkout.blocks` voor
+   UI-weergave. Bestaande tests aangepast/uitgebreid.
+2. **NIET gefixt, expliciet benoemd:** een los, niet-herhalend hoofdblok
+   (bijv. een continue duurtraining zonder intervallen) heeft geen
+   aansluitende rust-stap — `PM5WorkoutProgrammer` weigert dit nog steeds.
+   Oplossen vraagt onderzoek naar welke PM5-commandosequentie een continue
+   (niet-interval) workout nodig heeft (mogelijk een ander `WorkoutType`
+   dan de bevestigde interval-varianten) — niet onderzocht in deze sprint,
+   dus niet gegokt. Blijft een bekende beperking.
+
+**Correctie op eerdere aanname**
+- `recoveryBlocks` bleek in de huidige `bouwWorkout()`-implementatie
+  ALTIJD leeg (`recoveryBlocks: []`, hardcoded in `builder.ts`) — mijn
+  eerdere veronderstelling dat dit index-gebaseerd met `mainBlocks`
+  correspondeert was ongefundeerd. De mapper ondersteunt de pairing toch
+  (toekomstbestendig), maar met de documentatie gecorrigeerd naar wat de
+  code daadwerkelijk doet.
+
+**Bewust nog niet aangeraakt**
+- `markCompleted()`/`syncItem()` (resultaat-upload) — Sprint 6b-3, wacht
+  op een concreet upload-endpoint-ontwerp.
+- `executionType`/CoachOS' `WorkoutType`-vertaling naar PM5's
+  `SET_WORKOUTTYPE` — nog niet gekoppeld.
+- Workout-niveau `targets[]` (naast per-blok-targets) — niet gemapt, geen
+  Connect-gebruik voor op dit moment.

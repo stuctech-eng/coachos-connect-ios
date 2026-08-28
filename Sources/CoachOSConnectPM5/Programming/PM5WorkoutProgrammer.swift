@@ -10,11 +10,22 @@ import CoachOSConnectCore
 /// afwisselend werk- en hersteldstappen, bijvoorbeeld 5×(4:00 werk, 2:00
 /// rust), met een doel op vermogen (`.power`) en/of pace (`.pace`).
 ///
+/// **Sprint 6b-2-correctie:** leidende `.warmup`- en afsluitende
+/// `.cooldown`-stappen worden overgeslagen (niet als PM5-interval
+/// geprogrammeerd), in plaats van de hele workout te weigeren zoals in
+/// Sprint 5a. Reden: elke daadwerkelijke CoachOS-workout heeft een losse
+/// `warmup[]`/`cooldown[]`-array (bevestigd tijdens de contract-review,
+/// 28 augustus 2026) — zonder deze correctie zou letterlijk geen enkele
+/// echte workout ooit geprogrammeerd kunnen worden, alleen kunstmatige
+/// testgevallen zonder warmup/cooldown. De stappen zelf blijven wél
+/// onderdeel van `UniversalWorkout.blocks` (voor UI-weergave); ze worden
+/// alleen niet als CSAFE-commando's verstuurd.
+///
 /// Expliciet NIET ondersteund in deze versie — elk van deze gevallen
 /// resulteert in `PM5Error.unsupportedWorkoutConfiguration`, nooit in een
 /// gegokte byte-encodering:
-/// - Warm-up- of cooldown-stappen (`.warmup`, `.cooldown`) — onduidelijk of
-///   en hoe deze een eigen PM5-interval-index krijgen; niet bevestigd.
+/// - Warm-up/cooldown ergens ANDERS dan aan het begin/eind (bijv. tussen
+///   twee werk/rust-paren in) — geen bevestigde betekenis daarvoor.
 /// - Een werkstap zonder aansluitende hersteldstap, of andersom.
 /// - Afstandgebaseerde werkstappen (`WorkoutDuration.distance`) — de
 ///   bevestigde MVP-keten is tijdgebaseerd; afstand-intervallen volgen later.
@@ -24,7 +35,10 @@ import CoachOSConnectCore
 ///   programmeersequentie ontbreekt nog. Zie sectie 29 van het
 ///   masterdocument.
 /// - Targets op een andere metric dan `.power` of `.pace` — dit zijn de
-///   enige twee bevestigde PM5-programmeercommando's (0x15, 0x06).
+///   enige twee bevestigde PM5-programmeercommando's (0x15, 0x06). Overige
+///   targets (bijv. CoachOS' `.zone`-gebaseerde SPM-doelen) worden door de
+///   CoachOS-mapping-laag bewust nooit als `WorkoutTarget` doorgegeven —
+///   zie `CoachOSWorkoutMapper` — dus deze programmer ziet ze niet eens.
 public enum PM5WorkoutProgrammer {
 
     /// Eén PM5-interval-index met zijn volledige configuratieblok,
@@ -36,9 +50,27 @@ public enum PM5WorkoutProgrammer {
     }
 
     public static func program(_ workout: UniversalWorkout) throws -> [IntervalBlock] {
-        let steps = workout.expandedSteps
-        guard !steps.isEmpty else {
+        let allSteps = workout.expandedSteps
+        guard !allSteps.isEmpty else {
             throw PM5Error.unsupportedWorkoutConfiguration(reason: "Workout bevat geen stappen.")
+        }
+
+        // Leidende warmup overslaan.
+        var startIndex = 0
+        while startIndex < allSteps.count, allSteps[startIndex].kind == .warmup {
+            startIndex += 1
+        }
+        // Afsluitende cooldown overslaan.
+        var endIndex = allSteps.count
+        while endIndex > startIndex, allSteps[endIndex - 1].kind == .cooldown {
+            endIndex -= 1
+        }
+
+        let steps = Array(allSteps[startIndex..<endIndex])
+        guard !steps.isEmpty else {
+            throw PM5Error.unsupportedWorkoutConfiguration(
+                reason: "Workout bevat na het overslaan van warmup/cooldown geen werkintervallen."
+            )
         }
 
         var blocks: [IntervalBlock] = []
@@ -49,7 +81,7 @@ public enum PM5WorkoutProgrammer {
             let workStep = steps[cursor]
             guard workStep.kind == .work || workStep.kind == .interval else {
                 throw PM5Error.unsupportedWorkoutConfiguration(
-                    reason: "Stap '\(workStep.name)' (\(workStep.kind)) op positie \(cursor) is geen werkstap; alleen afwisselende werk/hersteld-paren worden ondersteund."
+                    reason: "Stap '\(workStep.name)' (\(workStep.kind)) op positie \(cursor) is geen werkstap; alleen afwisselende werk/hersteld-paren (met optionele leidende warmup/afsluitende cooldown) worden ondersteund."
                 )
             }
 

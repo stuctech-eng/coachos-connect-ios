@@ -73,19 +73,27 @@ public struct WorkoutStep: Identifiable, Codable, Equatable, Sendable {
     public let kind: WorkoutStepKind
     public let duration: WorkoutDuration
     public let targets: [WorkoutTarget]
+    /// Vrije-tekst-instructie voor deze stap, puur informatief voor de UI
+    /// (bijv. een SPM-bereik als tekst wanneer er geen bevestigd
+    /// hardware-target bestaat — zie `PM5WorkoutProgrammer`'s documentatie
+    /// over waarom `.zone`-targets niet als `WorkoutTarget` gemapt worden).
+    /// Nooit gebruikt voor CSAFE-encoding, uitsluitend weergave.
+    public let instruction: String?
 
     public init(
         id: UUID = UUID(),
         name: String,
         kind: WorkoutStepKind,
         duration: WorkoutDuration,
-        targets: [WorkoutTarget] = []
+        targets: [WorkoutTarget] = [],
+        instruction: String? = nil
     ) {
         self.id = id
         self.name = name
         self.kind = kind
         self.duration = duration
         self.targets = targets
+        self.instruction = instruction
     }
 }
 

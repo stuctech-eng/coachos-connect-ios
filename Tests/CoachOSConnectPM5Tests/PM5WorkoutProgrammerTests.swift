@@ -57,7 +57,7 @@ final class PM5WorkoutProgrammerTests: XCTestCase {
         XCTAssertTrue(blocks[0].commands.contains(.setTargetPaceTime(centiseconds: 10000)))
     }
 
-    func test_program_warmupStep_throwsUnsupported() {
+    func test_program_onlyWarmupNoWorkIntervals_throwsUnsupported() {
         let warmup = WorkoutStep(name: "Warm-up", kind: .warmup, duration: .time(seconds: 300))
         let workout = UniversalWorkout(sourceId: "t", title: "t", sport: .rowing, blocks: [.step(warmup)])
 
@@ -66,6 +66,36 @@ final class PM5WorkoutProgrammerTests: XCTestCase {
                 return XCTFail("Verwachtte unsupportedWorkoutConfiguration, kreeg \(error)")
             }
         }
+    }
+
+    /// Sprint 6b-2-correctie: dit is de realistische vorm van een echte
+    /// CoachOS-workout (warmup + intervallen + cooldown) — moet nu wél
+    /// slagen, warmup/cooldown worden overgeslagen, niet de hele workout
+    /// geweigerd.
+    func test_program_realisticWorkoutWithWarmupAndCooldown_succeeds() throws {
+        let warmup = WorkoutStep(name: "Warm-up", kind: .warmup, duration: .time(seconds: 300))
+        let work = WorkoutStep(
+            name: "Werk",
+            kind: .work,
+            duration: .time(seconds: 240),
+            targets: [WorkoutTarget(metric: .power, minValue: 220)]
+        )
+        let recovery = WorkoutStep(name: "Rust", kind: .recovery, duration: .time(seconds: 120))
+        let cooldown = WorkoutStep(name: "Cooldown", kind: .cooldown, duration: .time(seconds: 300))
+
+        let workout = UniversalWorkout(
+            sourceId: "t", title: "t", sport: .rowing,
+            blocks: [
+                .step(warmup),
+                .repeatGroup(RepeatGroup(count: 5, steps: [work, recovery])),
+                .step(cooldown)
+            ]
+        )
+
+        let blocks = try PM5WorkoutProgrammer.program(workout)
+
+        XCTAssertEqual(blocks.count, 5)
+        XCTAssertEqual(blocks.map(\.index), [0, 1, 2, 3, 4])
     }
 
     func test_program_workWithoutFollowingRecovery_throwsUnsupported() {
