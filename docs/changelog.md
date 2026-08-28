@@ -453,3 +453,48 @@ vorm.
 - `Tests/CoachOSConnectWorkoutPlaybackTests/WorkoutPlaybackControllerTests.swift`:
   `@MainActor` toegevoegd aan de testklasse. Geen enkele test-logica
   gewijzigd, geen productiecode aangeraakt.
+
+---
+
+## PM5WorkoutProgrammer — continue (niet-interval) workouts
+
+Tweede van twee bekende gaten na Sprint 6b-3 gedicht. Een workout als
+"20 minuten rustig roeien" (precies één werkstap, geen herhaling/rust)
+werd tot nu toe volledig geweigerd — nu correct geprogrammeerd.
+
+**Bron van de fix:** de gedeprecieerde CoachOS-TypeScript-adapter
+(`rowing-pm5-csafe-adapter.ts`, zie de architectuurbeslissing na Sprint
+6b-3) bevat al bevestigd onderzoek voor precies dit geval, gebaseerd op
+werkende "Configure 20:00/4:00 splits"-voorbeelden: een continue workout
+gebruikt géén `SET_WORKOUTINTERVALCOUNT`/`SET_INTERVALTYPE`. Twee
+onafhankelijk gebouwde implementaties die tot dezelfde structuur komen —
+precies de kruisvalidatie die bij die architectuurbeslissing werd
+voorspeld.
+
+**Gewijzigd**
+- `PM5WorkoutProgrammer.program()`: als er na het overslaan van
+  warmup/cooldown precies 1 werkstap overblijft, wordt die als continue
+  workout geprogrammeerd (`SET_WORKOUTTYPE` + `SET_WORKOUTDURATION` +
+  optionele targets + `CONFIGURE_WORKOUT(true)`) in plaats van geweigerd.
+  Ondersteunt zowel tijd- als afstandgebaseerde duur.
+- Bijkomend: afstandgebaseerde duur is nu bevestigd ondersteund voor het
+  continue geval — anders dan afstandgebaseerde *intervallen* (binnen een
+  werk/rust-paar), die nog steeds geweigerd worden; dat blijft een apart,
+  niet aangeraakt gat.
+
+**Testgedrag bewust gewijzigd, niet stilzwijgend**
+- `test_program_workWithoutFollowingRecovery_throwsUnsupported` bestond
+  uit exact het scenario dat nu de continue-workout-hoofdcase is (één
+  losse werkstap). Vervangen door
+  `test_program_singleContinuousTimeBasedWorkout_succeeds` +
+  gerelateerde tests. Een nieuwe test
+  (`test_program_twoConsecutiveWorkStepsWithoutRest_throwsUnsupported`)
+  dekt het scenario dat nog steeds terecht een fout moet geven.
+
+**Bewust nog niet aangeraakt**
+- `.openEnded`-duur bij een continue workout ("just row") — blijft
+  geweigerd, geen bevestigde sequentie.
+- Afstandgebaseerde *intervallen* — apart, nog steeds niet ondersteund.
+- `executionType`/CoachOS' `WorkoutType` als directe bron voor
+  `SET_WORKOUTTYPE` — deze fix leidt het workouttype af uit de
+  stapstructuur zelf (tijd/afstand), niet uit CoachOS' `executionType`-veld.

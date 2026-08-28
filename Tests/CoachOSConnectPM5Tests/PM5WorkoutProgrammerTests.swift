@@ -98,9 +98,83 @@ final class PM5WorkoutProgrammerTests: XCTestCase {
         XCTAssertEqual(blocks.map(\.index), [0, 1, 2, 3, 4])
     }
 
-    func test_program_workWithoutFollowingRecovery_throwsUnsupported() {
-        let work = WorkoutStep(name: "Werk", kind: .work, duration: .time(seconds: 240))
+    /// Was `test_program_workWithoutFollowingRecovery_throwsUnsupported`
+    /// — dit exacte scenario (één losse werkstap, geen rust) is na de
+    /// continue-workout-correctie bewust GEEN fout meer, maar het
+    /// hoofdgeval van regel 2 in de type-documentatie. Test hieronder
+    /// vervangen door het nieuwe, bedoelde gedrag.
+    func test_program_singleContinuousTimeBasedWorkout_succeeds() throws {
+        let work = WorkoutStep(
+            name: "20 minuten rustig roeien",
+            kind: .work,
+            duration: .time(seconds: 1200),
+            targets: [WorkoutTarget(metric: .power, minValue: 150)]
+        )
         let workout = UniversalWorkout(sourceId: "t", title: "t", sport: .rowing, blocks: [.step(work)])
+
+        let blocks = try PM5WorkoutProgrammer.program(workout)
+
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertEqual(blocks[0].index, 0)
+        XCTAssertEqual(blocks[0].commands, [
+            .setWorkoutType(PM5WorkoutType.fixedTimeNoSplits),
+            .setWorkoutDuration(durationType: PM5DurationType.time, value: 120000),
+            .setTargetAverageWatts(150),
+            .configureWorkout(programmingMode: true)
+        ])
+        // Geen interval-count/type-commando's voor een continue workout.
+        XCTAssertFalse(blocks[0].commands.contains { if case .setWorkoutIntervalCount = $0 { return true }; return false })
+        XCTAssertFalse(blocks[0].commands.contains { if case .setIntervalType = $0 { return true }; return false })
+    }
+
+    func test_program_singleContinuousDistanceBasedWorkout_succeeds() throws {
+        // Bewust nu WEL ondersteund voor het continue geval — anders dan
+        // afstandgebaseerde INTERVALLEN, die nog steeds geweigerd worden.
+        let work = WorkoutStep(name: "6000m", kind: .work, duration: .distance(meters: 6000))
+        let workout = UniversalWorkout(sourceId: "t", title: "t", sport: .rowing, blocks: [.step(work)])
+
+        let blocks = try PM5WorkoutProgrammer.program(workout)
+
+        XCTAssertEqual(blocks[0].commands, [
+            .setWorkoutType(PM5WorkoutType.fixedDistNoSplits),
+            .setWorkoutDuration(durationType: PM5DurationType.distance, value: 6000),
+            .configureWorkout(programmingMode: true)
+        ])
+    }
+
+    func test_program_continuousWorkoutWithWarmupAndCooldown_succeeds() throws {
+        let warmup = WorkoutStep(name: "Warm-up", kind: .warmup, duration: .time(seconds: 300))
+        let work = WorkoutStep(name: "Rustig roeien", kind: .work, duration: .time(seconds: 1200))
+        let cooldown = WorkoutStep(name: "Cooldown", kind: .cooldown, duration: .time(seconds: 180))
+        let workout = UniversalWorkout(
+            sourceId: "t", title: "t", sport: .rowing,
+            blocks: [.step(warmup), .step(work), .step(cooldown)]
+        )
+
+        let blocks = try PM5WorkoutProgrammer.program(workout)
+
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertTrue(blocks[0].commands.contains(.setWorkoutType(PM5WorkoutType.fixedTimeNoSplits)))
+    }
+
+    func test_program_openEndedContinuousWorkout_throwsUnsupported_notGuessed() {
+        let work = WorkoutStep(name: "Just row", kind: .work, duration: .openEnded)
+        let workout = UniversalWorkout(sourceId: "t", title: "t", sport: .rowing, blocks: [.step(work)])
+
+        XCTAssertThrowsError(try PM5WorkoutProgrammer.program(workout)) { error in
+            guard case PM5Error.unsupportedWorkoutConfiguration = error else {
+                return XCTFail("Verwachtte unsupportedWorkoutConfiguration, kreeg \(error)")
+            }
+        }
+    }
+
+    /// Nog steeds terecht ongeldig: twee werkstappen zonder rust ertussen
+    /// is geen continue workout (die heeft er precies 1) én geen geldig
+    /// intervalpaar (rust ontbreekt).
+    func test_program_twoConsecutiveWorkStepsWithoutRest_throwsUnsupported() {
+        let work1 = WorkoutStep(name: "Werk 1", kind: .work, duration: .time(seconds: 240))
+        let work2 = WorkoutStep(name: "Werk 2", kind: .work, duration: .time(seconds: 240))
+        let workout = UniversalWorkout(sourceId: "t", title: "t", sport: .rowing, blocks: [.step(work1), .step(work2)])
 
         XCTAssertThrowsError(try PM5WorkoutProgrammer.program(workout)) { error in
             guard case PM5Error.unsupportedWorkoutConfiguration = error else {

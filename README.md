@@ -6,31 +6,34 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Optie B — UI voor SPM/coaching-instructies
+## Status: PM5WorkoutProgrammer — continue workouts ondersteund
 
-Eerste van twee bekende gaten na Sprint 6b-3 gedicht. De workout-keten is
-nu daadwerkelijk bruikbaar: stap, resterende tijd, en de door CoachOS
-aangeleverde instructie zijn zichtbaar tijdens een training.
+Beide bekende gaten na Sprint 6b-3 zijn nu gedicht (Optie B UI, en dit).
+Een workout zonder herhaling/rust (bijv. "20 minuten rustig roeien")
+wordt nu correct geprogrammeerd — geen `SET_WORKOUTINTERVALCOUNT`/
+`SET_INTERVALTYPE`, bevestigd via kruisvalidatie met de gedeprecieerde
+CoachOS-TypeScript-adapter.
 
-### Wat is er gebouwd (cumulatief t/m Optie B)
+### Wat is er gebouwd (cumulatief, actuele stand)
 
-**Sprint 1 t/m 6b-3** — fundament, Bluetooth-laag, device discovery,
+**Sprint 1 t/m Optie B** — fundament, Bluetooth-laag, device discovery,
 PM5/CSAFE, backend-auth, native auth, workout ophalen + mapping,
-resultaat-upload (beide richtingen van de keten staan).
+resultaat-upload, workout-weergave-UI (beide richtingen van de
+CoachOS-Connect-keten staan, plus de UI erbovenop).
 
-**Optie B — Workout-weergave (nieuw)**
-- Module `CoachOSConnectWorkoutPlayback`: `WorkoutPlaybackController`
-  (tijd-gebaseerde stap-/countdown-logica, injecteerbare klok),
-  `WorkoutStepKind.displayLabel`
-- `App/WorkoutPlaybackView.swift`, bereikbaar vanuit `RootView` na het
-  ophalen van de dagworkout
+**PM5WorkoutProgrammer — continue workouts (nieuw)**
+- Precies 1 overgebleven werkstap (na warmup/cooldown) → continue
+  workout: `SET_WORKOUTTYPE` + `SET_WORKOUTDURATION` + targets +
+  `CONFIGURE_WORKOUT(true)`, geen interval-commando's
+- Tijd- én afstandgebaseerde duur ondersteund voor dit geval
 
 ### Wat hier bewust nog niet in zit
-- Koppeling met `PM5Adapter.startWorkout()`/`stopWorkout()` — dit scherm
-  toont voortgang, triggert niets op de hardware
-- Continue (niet-interval) hoofdblokken zonder rust — nog steeds het
-  bekende gat, volgende stap na deze
+- Koppeling met `PM5Adapter.startWorkout()`/`stopWorkout()` vanuit de UI
+- Afstandgebaseerde *intervallen* (binnen een werk/rust-paar) — apart gat
+- `.openEnded`/"just row"-workouts
 - Live metrics (Sprint 8), Workout Player met hardware-koppeling (Sprint 9)
+- De eerste fysieke PM5-hardwaretest — alles hierboven is softwarematig
+  bewezen (CI groen), niet fysiek gevalideerd
 
 ## Projectstructuur
 
