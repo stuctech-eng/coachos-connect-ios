@@ -31,12 +31,20 @@ public struct SyncItem: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let kind: SyncItemKind
     public let payloadReference: String
+    /// De daadwerkelijk te versturen data, al gecodeerd naar het exacte
+    /// JSON-schema dat de bijbehorende CoachOS-endpoint verwacht (zie
+    /// `ConnectWorkoutResultPayload` voor `.completedWorkout`).
+    /// `payloadReference` alleen (een los ID-string) was nooit genoeg om
+    /// er daadwerkelijk iets mee te versturen — deze aanvulling repareert
+    /// dat gat, ontdekt tijdens Sprint 6b-3.
+    public let payload: Data
     public let createdAt: Date
 
-    public init(id: UUID = UUID(), kind: SyncItemKind, payloadReference: String, createdAt: Date = Date()) {
+    public init(id: UUID = UUID(), kind: SyncItemKind, payloadReference: String, payload: Data, createdAt: Date = Date()) {
         self.id = id
         self.kind = kind
         self.payloadReference = payloadReference
+        self.payload = payload
         self.createdAt = createdAt
     }
 }

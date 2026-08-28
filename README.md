@@ -6,36 +6,36 @@ hardware: Bluetooth, live metrics, workout-uitvoering, synchronisatie.
 
 > CoachOS denkt. CoachOS Connect voert uit.
 
-## Status: Sprint 6b-2 — CoachOS-workout ophalen + mapping
+## Status: Sprint 6b-3 — Resultaat-upload (Connect-kant)
 
-Ketenoverzicht (nu écht werkend, niet meer verzonnen): `CoachOS Today
-Engine → sessieId → .../training-plan/workout → CoachOS UniversalWorkout →
-CoachOSWorkoutMapper → Connect UniversalWorkout → PM5WorkoutProgrammer →
-PM5`.
+Sluit de terugweg: `PM5 → Connect → lokale wachtrij → CoachOS →
+activity_sessions`. Beide richtingen van de keten staan nu: heen
+(Sprint 6b-2) en terug (deze sprint).
 
-### Wat is er gebouwd (cumulatief t/m Sprint 6b-2)
+**Architectuurbeslissing:** Swift Connect (`CoachOSConnectPM5`) is de
+enige runtime PM5/CSAFE-implementatie. Een tweede, onafhankelijk op
+CoachOS aangetroffen TypeScript-implementatie is gedeprecieerd
+(niet verwijderd — bewaard als validatiemateriaal, zie changelog).
 
-**Sprint 1 t/m 6a** — fundament, Bluetooth-laag, device discovery,
-PM5/CSAFE-encoding + adapter, backend-auth (`coachOS`-repo).
+### Wat is er gebouwd (cumulatief t/m Sprint 6b-3)
 
-**Sprint 6b-1 — Native Supabase-authenticatie**
-- `SupabaseAuthClient`, `KeychainTokenStore`, herschreven `RemoteAuthRepository`
+**Sprint 1 t/m 6b-2** — fundament, Bluetooth-laag, device discovery,
+PM5/CSAFE, backend-auth, native auth, workout ophalen + mapping.
 
-**Sprint 6b-2 — Workout ophalen + mapping (nieuw)**
-- `CoachOSWorkoutMapper`: CoachOS' eigen `UniversalWorkout` → Connect's
-  `UniversalWorkout`, inclusief expliciete Optie B-targetlogica (zone-
-  doelen worden nooit als hardware-target verstuurd)
-- `CoachOSEndpoints.today()`/`rowingWorkout(sessieId:)`: de echte paden
-- `RemoteWorkoutRepository` herschreven: volledige today→workout-keten
-- `PM5WorkoutProgrammer`-correctie: warmup/cooldown worden nu correct
-  overgeslagen i.p.v. de hele workout te weigeren
+**Sprint 6b-3 — Resultaat-upload (nieuw)**
+- `ConnectWorkoutResultPayload`: exacte spiegel van het bevestigde
+  backend-schema
+- `ConnectWorkoutResultBuilder`: pure, testbare payload/`SyncItem`-builder
+- `CoachOSEndpoints.workoutResult(body:)`, `LocalSyncRepository`
+  herschreven om er daadwerkelijk naartoe te versturen
+- `SyncItem.payload: Data` (Core) — het ontbrekende stuk om de wachtrij
+  ooit iets zinnigs te kunnen versturen
 
 ### Wat hier bewust nog niet in zit
-- Resultaat-upload (`markCompleted`/`syncItem`) — Sprint 6b-3
-- Continue (niet-interval) hoofdblokken zonder rust — bekend, niet
-  opgelost gat, zie changelog
-- `executionType` → PM5 `WorkoutType`-vertaling
-- Live metrics (Sprint 8), Google-OAuth in Connect
+- Koppeling aan een echte trainingssessie — wacht op Sprint 9 (Workout Player)
+- Echte `totals`/`intervals`-waarden — wacht op Sprint 8 (live metrics)
+- `liveMetricsSession`-sync — geen bevestigd endpoint
+- Continue (niet-interval) hoofdblokken zonder rust — bekend gat sinds 6b-2
 
 ## Projectstructuur
 

@@ -19,9 +19,21 @@ public final class LocalSyncRepository: SyncRepositoryProtocol, @unchecked Senda
         (try? await storage.load([SyncItem].self, forKey: queueKey)) ?? []
     }
 
+    /// Sprint 6b-3-correctie: verstuurt nu `item.payload` (al gecodeerd
+    /// naar het exacte backend-schema door `ConnectWorkoutResultBuilder`)
+    /// naar het echte, bevestigde endpoint — niet langer het generieke
+    /// `SyncItem`-object zelf naar een nooit-bestaand placeholder-pad.
     public func sync(_ item: SyncItem) async throws {
-        let payload = try JSONEncoder().encode(item)
-        try await apiClient.sendWithoutResponse(CoachOSEndpoints.syncItem(body: payload))
+        switch item.kind {
+        case .completedWorkout:
+            try await apiClient.sendWithoutResponse(CoachOSEndpoints.workoutResult(body: item.payload))
+        case .liveMetricsSession:
+            // Nog geen bevestigd endpoint hiervoor (live metrics zelf
+            // bestaan nog niet, zie Sprint 8) — bewust nog niet
+            // geïmplementeerd, geen gok naar een niet-bestaand pad.
+            throw CoachOSConnectError.unknown(reason: "Synchronisatie van liveMetricsSession is nog niet geïmplementeerd (wacht op Sprint 8).")
+        }
+
         var remaining = await pendingSyncItems()
         remaining.removeAll { $0.id == item.id }
         try await storage.save(remaining, forKey: queueKey)

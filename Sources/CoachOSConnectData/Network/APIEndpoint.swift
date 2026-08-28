@@ -60,13 +60,16 @@ public enum CoachOSEndpoints {
         return APIEndpoint(path: components.string ?? "/api/specialists/rowing/training-plan/workout", method: .get)
     }
 
-    // MARK: - Sprint 6b-3 (nog niet geïmplementeerd)
+    /// `POST /api/specialists/rowing/training-plan/workout-result` — het
+    /// echte, bevestigde resultaat-endpoint (Sprint 6b-3 backend, 28
+    /// augustus 2026). Body: zie `ConnectWorkoutResultPayload`.
+    public static func workoutResult(body: Data) -> APIEndpoint {
+        APIEndpoint(path: "/api/specialists/rowing/training-plan/workout-result", method: .post, body: body)
+    }
+
+    // MARK: - Nog niet geïmplementeerd (geen backend-tegenhanger bevestigd)
 
     public static func markCompleted(id: String, body: Data) -> APIEndpoint {
         APIEndpoint(path: "/api/v1/connect/workouts/\(id)/complete", method: .post, body: body)
-    }
-
-    public static func syncItem(body: Data) -> APIEndpoint {
-        APIEndpoint(path: "/api/v1/connect/sync", method: .post, body: body)
     }
 }

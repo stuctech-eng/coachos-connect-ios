@@ -379,3 +379,59 @@ Verbindt de auth-laag uit 6b-1 met de daadwerkelijke workout-keten:
   `SET_WORKOUTTYPE` — nog niet gekoppeld.
 - Workout-niveau `targets[]` (naast per-blok-targets) — niet gemapt, geen
   Connect-gebruik voor op dit moment.
+
+---
+
+## Sprint 6b-3 — Resultaat-upload (Connect-kant)
+
+Sluit de terugweg: `PM5 → Connect → lokale wachtrij → CoachOS →
+activity_sessions`. Gebruikt uitsluitend het backend-contract dat al op
+`coachOS` staat (`connect-result-bridge.ts`/`workout-result/route.ts`) —
+geen eigen metrics-schema bedacht, zoals afgesproken.
+
+**Belangrijke architectuurbeslissing (voorafgaand aan deze sprint,
+vastgelegd in beide repo's):** `rowing-pm5-csafe-adapter.ts` en
+`rowing-pm5-workout-request.ts` (CoachOS) zijn een tweede, onafhankelijk
+gebouwde CSAFE-implementatie die daar werd aangetroffen. Besluit: Swift
+Connect (`CoachOSConnectPM5`) blijft de enige runtime-implementatie; de
+TypeScript-bestanden zijn gedeprecieerd (notitie toegevoegd, niet
+verwijderd) en dienen alleen nog als validatiemateriaal — twee
+onafhankelijke implementaties die tot nagenoeg identieke CSAFE-bytes
+komen is sterk bewijs dat de Swift-kant klopt.
+
+**Toegevoegd**
+- `ConnectWorkoutResultPayload` (+ `Device`/`Totals`/`Interval`): exacte
+  spiegel van het backend-request-body-schema, inclusief de bewust
+  overgenomen gemengde camelCase/snake_case-naamgeving.
+- `ConnectWorkoutResultBuilder`: pure, testbare functie die een
+  verzendklaar `SyncItem` bouwt. Bewust nog niet gekoppeld aan een echte
+  trainingssessie — er bestaat nergens in Connect nog een Workout Player
+  (Sprint 9) die een training van start tot finish begeleidt.
+- `CoachOSEndpoints.workoutResult(body:)`: het echte, bevestigde
+  endpoint.
+- `SyncItem` (Core): nieuw `payload: Data`-veld — `payloadReference`
+  alleen was nooit genoeg om er daadwerkelijk iets mee te versturen.
+- `LocalSyncRepository.sync(_:)` herschreven: routeert op `item.kind`
+  naar het juiste, echte endpoint met de echte payload, niet langer het
+  generieke `SyncItem`-object naar een placeholder-pad.
+- Tests: payload-schema (camelCase/snake_case-mix, geverifieerd via ruwe
+  JSON-inspectie, niet alleen round-trip), de builder, en
+  `LocalSyncRepository` end-to-end via `MockURLProtocol` (bevestigt het
+  daadwerkelijke aangeroepen pad).
+
+**Gecorrigeerd**
+- `CoachOSEndpoints.syncItem(body:)` verwijderd — was nooit meer dan een
+  placeholder naar een nooit-bestaand pad.
+
+**Bewust nog niet aangeraakt**
+- Daadwerkelijke koppeling aan een echte trainingssessie (start/eind-
+  tijdstip vastleggen, resultaat automatisch in de wachtrij zetten na
+  `stopWorkout()`) — wacht op Sprint 9 (Workout Player). De plumbing
+  staat klaar en is getest; er is alleen nog geen aanroeper.
+- `totals`/`intervals` met echte waarden — wacht op Sprint 8 (live
+  metrics-decodering). Vandaag zou een écht verstuurd resultaat alleen
+  `sessieId`/`startedAt`/`completedAt`/`device` bevatten, exact zoals
+  CoachOS' eigen Trainer AI-brug voor training/complete ("metrics blijft
+  leeg i.p.v. iets te verzinnen").
+- `liveMetricsSession`-sync (`SyncItemKind`) — geen bevestigd endpoint,
+  gooit nu expliciet een fout i.p.v. te gokken.
