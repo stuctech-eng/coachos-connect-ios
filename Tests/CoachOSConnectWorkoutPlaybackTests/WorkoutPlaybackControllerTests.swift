@@ -2,6 +2,7 @@ import XCTest
 import CoachOSConnectCore
 @testable import CoachOSConnectWorkoutPlayback
 
+@MainActor
 final class WorkoutPlaybackControllerTests: XCTestCase {
 
     /// Fake klok: `advance(by:)` verzet de tijd zonder echt te wachten —
@@ -124,6 +125,8 @@ final class WorkoutPlaybackControllerTests: XCTestCase {
 }
 
 final class WorkoutStepKindDisplayTests: XCTestCase {
+    // Geen @MainActor nodig: WorkoutStepKind.displayLabel raakt de
+    // MainActor-isolated controller niet aan.
     func test_displayLabel_coversAllCases() {
         XCTAssertEqual(WorkoutStepKind.warmup.displayLabel, "Warm-up")
         XCTAssertEqual(WorkoutStepKind.work.displayLabel, "Werk")

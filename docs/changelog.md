@@ -438,40 +438,18 @@ komen is sterk bewijs dat de Swift-kant klopt.
 
 ---
 
-## Optie B — UI voor SPM/coaching-instructies tijdens de training
+## CI-fix — @MainActor ontbrak op WorkoutPlaybackControllerTests
 
-Eerste van twee bekende gaten na Sprint 6b-3. Maakt de bestaande workout-
-keten daadwerkelijk bruikbaar: de gebruiker ziet nu welke stap actief is,
-hoeveel tijd resteert, en de door CoachOS aangeleverde
-instructie/coachMessage (gevuld door `CoachOSWorkoutMapper` sinds Sprint
-6b-2) — zonder dat de PM5 ooit een SPM-commando hoeft te kennen.
+CI-run op de Optie B-patch faalde met een reeks
+`main actor-isolated ... in een synchronous nonisolated context`-fouten.
 
-**Toegevoegd**
-- Nieuwe module `CoachOSConnectWorkoutPlayback` (afhankelijk van alleen
-  `CoachOSConnectCore`, geen hardware-/PM5-kennis).
-- `WorkoutPlaybackController`: telt tijdgebaseerde stappen af op basis
-  van de klok (injecteerbaar voor tests, geen echte `Task.sleep` in
-  tests nodig). Afstand-/open-einde-stappen tellen niet automatisch af
-  (geen betrouwbare manier zonder live PM5-telemetrie, Sprint 8) — de
-  gebruiker gaat daar handmatig door via `advanceManually()`.
-- `WorkoutStepKind.displayLabel`: Nederlandse fase-labels.
-- `App/WorkoutPlaybackView.swift`: dunne SwiftUI-weergave — stap-teller,
-  aftel-/verstreken-tijd, instructie-kaart, "Volgende stap"-knop waar
-  relevant.
-- `App/RootView.swift`: navigatielink naar het trainingsscherm zodra een
-  workout is opgehaald.
-- Tests (`CoachOSConnectWorkoutPlaybackTests`): countdown, automatisch
-  doorschakelen bij tijdgebaseerde stappen, handmatig doorschakelen bij
-  afstand-/open-einde-stappen, workout-afronding, lege workout, en de
-  Nederlandse labels — allemaal met een injecteerbare klok, dus zonder
-  ook maar één seconde te wachten.
+**Oorzaak:** `WorkoutPlaybackController` is `@MainActor` (nodig voor
+`ObservableObject`/SwiftUI), maar de testfuncties die 'm aanriepen waren
+zelf niet `@MainActor` en niet `async` — dezelfde categorie fout als de
+eerdere Sprint 3 CI-fix (`XCTAssertEqual(await ...)`), nu in een andere
+vorm.
 
-**Bewust nog niet aangeraakt**
-- Geen koppeling met `PM5Adapter.startWorkout()`/`stopWorkout()` — dit
-  scherm toont alleen de voortgang, triggert nog niets op de hardware.
-  Die koppeling hoort bij Sprint 9 (Workout Player) of een gerichte
-  vervolgstap, niet stilzwijgend hier meegenomen.
-- Pauzeren/hervatten binnen dit scherm — `PM5Adapter.pauseWorkout()`/
-  `resumeWorkout()` zijn zelf al niet geïmplementeerd (geen bevestigd
-  CSAFE-commando, zie Sprint 5b), dus dit scherm biedt bewust ook geen
-  pauzeknop die iets zou suggereren wat niet klopt.
+**Gewijzigd**
+- `Tests/CoachOSConnectWorkoutPlaybackTests/WorkoutPlaybackControllerTests.swift`:
+  `@MainActor` toegevoegd aan de testklasse. Geen enkele test-logica
+  gewijzigd, geen productiecode aangeraakt.
